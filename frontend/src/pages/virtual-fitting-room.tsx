@@ -48,8 +48,8 @@ export function VirtualFittingRoomPage() {
   const selectedProduct = urlProduct ?? null;
 
   const selectedColour = selectedProduct
-    ? resolveColour(selectedProduct, urlColour)
-    : '';
+  ? resolveColour(selectedProduct, urlColour)
+  : '';
   const [pickerOpen, setPickerOpen] = useState(false);
   const [invalidProduct, setInvalidProduct] = useState(false);
 
@@ -70,10 +70,10 @@ export function VirtualFittingRoomPage() {
 
   // Sync colour when selected product changes/loads
   useEffect(() => {
-    if (selectedProduct) {
-      setInvalidProduct(false);
-    }
-  }, [selectedProduct]);
+  if (selectedProduct) {
+    setInvalidProduct(false);
+  }
+}, [selectedProduct]);
 
   // Mark invalid if a productId was supplied but resolves to nothing eligible
   useEffect(() => {
@@ -86,25 +86,25 @@ export function VirtualFittingRoomPage() {
 
   // Keep colour consistent if URL colour param is invalid for the product
   useEffect(() => {
-    if (!selectedProduct || selectedProduct.id !== urlProductId) return;
+  if (!selectedProduct || selectedProduct.id !== urlProductId) return;
 
-    const resolvedColour = resolveColour(selectedProduct, urlColour);
+  const resolvedColour = resolveColour(selectedProduct, urlColour);
 
-    if (urlColour !== resolvedColour) {
-      setSearchParams(
-        {
-          productId: selectedProduct.id,
-          colour: resolvedColour,
-        },
-        { replace: true }
-      );
-    }
-  }, [
-    selectedProduct,
-    urlProductId,
-    urlColour,
-    setSearchParams,
-  ]);
+  if (urlColour !== resolvedColour) {
+    setSearchParams(
+      {
+        productId: selectedProduct.id,
+        colour: resolvedColour,
+      },
+      { replace: true }
+    );
+  }
+}, [
+  selectedProduct,
+  urlProductId,
+  urlColour,
+  setSearchParams,
+]);
 
   // Cleanup object URL on unmount or replacement
   useEffect(() => {
@@ -114,42 +114,42 @@ export function VirtualFittingRoomPage() {
   }, [imageUrl]);
 
   const selectProduct = (product: Product, colour?: string) => {
-    const resolvedColour =
-      colour && product.colours.includes(colour)
-        ? colour
-        : product.colours[0];
+  const resolvedColour =
+    colour && product.colours.includes(colour)
+      ? colour
+      : product.colours[0];
 
-    setResult(null);
-    setFeedback(null);
+  setResult(null);
+  setFeedback(null);
 
-    setSearchParams(
-      {
-        productId: product.id,
-        colour: resolvedColour,
-      },
-      { replace: true }
-    );
-  };
+  setSearchParams(
+    {
+      productId: product.id,
+      colour: resolvedColour,
+    },
+    { replace: true }
+  );
+};
 
   const handleSelectFromPicker = (product: Product) => {
     selectProduct(product);
   };
 
   const handleColourChange = (colour: string) => {
-    if (!selectedProduct) return;
-    if (!selectedProduct.colours.includes(colour)) return;
+  if (!selectedProduct) return;
+  if (!selectedProduct.colours.includes(colour)) return;
 
-    setResult(null);
-    setFeedback(null);
+  setResult(null);
+  setFeedback(null);
 
-    setSearchParams(
-      {
-        productId: selectedProduct.id,
-        colour,
-      },
-      { replace: true }
-    );
-  };
+  setSearchParams(
+    {
+      productId: selectedProduct.id,
+      colour,
+    },
+    { replace: true }
+  );
+};
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -374,8 +374,9 @@ export function VirtualFittingRoomPage() {
                     <button
                       key={c}
                       onClick={() => handleColourChange(c)}
-                      className={`w-8 h-8 rounded-full border-2 transition-colors ${isActive ? 'border-foreground' : 'border-border'
-                        }`}
+                      className={`w-8 h-8 rounded-full border-2 transition-colors ${
+                        isActive ? 'border-foreground' : 'border-border'
+                      }`}
                       style={{ backgroundColor: v?.colourHex || '#ccc' }}
                       title={c}
                       aria-label={c}
@@ -445,8 +446,9 @@ export function VirtualFittingRoomPage() {
                       <button
                         key={c}
                         onClick={() => handleColourChange(c)}
-                        className={`w-8 h-8 rounded-full border-2 transition-colors ${isActive ? 'border-foreground' : 'border-border'
-                          }`}
+                        className={`w-8 h-8 rounded-full border-2 transition-colors ${
+                          isActive ? 'border-foreground' : 'border-border'
+                        }`}
                         style={{ backgroundColor: v?.colourHex || '#ccc' }}
                         title={c}
                         aria-label={c}
@@ -498,7 +500,6 @@ export function VirtualFittingRoomPage() {
           </section>
 
           {/* Consent + generate */}
-          {/* Consent + generate */}
           <section className="space-y-4">
             <h2 className="font-semibold flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-foreground text-background text-sm flex items-center justify-center">
@@ -506,82 +507,23 @@ export function VirtualFittingRoomPage() {
               </span>{' '}
               Consent
             </h2>
-
-            <div
-              className={`rounded-xl border p-4 sm:p-5 transition-colors ${consent
-                  ? 'border-success/50 bg-success/5'
-                  : 'border-foreground/20 bg-card'
-                }`}
-            >
+            <div className="bg-muted rounded-lg p-4 space-y-3">
               <div className="flex items-start gap-3">
-                <Checkbox
-                  id="vto-consent"
-                  checked={consent}
-                  onCheckedChange={(value) => setConsent(value === true)}
-                  aria-describedby="vto-consent-description vto-consent-status"
-                  className="mt-0.5 size-5 border-2 border-foreground/70 bg-background data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background"
-                />
-
-                <div className="flex-1">
-                  <Label
-                    htmlFor="vto-consent"
-                    className="cursor-pointer text-sm font-medium leading-relaxed"
-                  >
-                    I consent to using my selected photo for this Virtual Try-On demo.
-                  </Label>
-
-                  <p
-                    id="vto-consent-description"
-                    className="mt-2 text-sm leading-relaxed text-muted-foreground"
-                  >
-                    Demo mode: your selected image remains in this browser session and is
-                    not uploaded to a server. In the production version, explicit consent
-                    will be required before the image is sent securely for virtual try-on
-                    processing. See our{' '}
-                    <Link
-                      to="/privacy"
-                      className="underline underline-offset-2 hover:text-foreground"
-                    >
-                      Privacy Policy
-                    </Link>
-                    .
-                  </p>
-
-                  <p
-                    id="vto-consent-status"
-                    className={`mt-3 text-xs font-medium ${consent ? 'text-success' : 'text-warning'
-                      }`}
-                    aria-live="polite"
-                  >
-                    {consent
-                      ? 'Consent confirmed. You can generate your preview.'
-                      : 'Required before generating a demo preview.'}
-                  </p>
-                </div>
+                <Checkbox id="vto-consent" checked={consent} onCheckedChange={(v) => setConsent(v === true)} />
+                <Label htmlFor="vto-consent" className="text-sm cursor-pointer leading-relaxed">
+                  Demo mode: your selected image remains in this browser session and is not uploaded to a
+                  server. In the production version, explicit consent will be required before the image is
+                  sent securely for virtual try-on processing. See our{' '}
+                  <Link to="/privacy" className="underline hover:text-foreground">
+                    Privacy Policy
+                  </Link>
+                  .
+                </Label>
               </div>
             </div>
-
-            <Button
-              size="lg"
-              className="w-full"
-              onClick={handleTryOn}
-              disabled={!canGenerate}
-            >
-              <Scan className="h-5 w-5" />
-              Generate Demo Preview
+            <Button size="lg" className="w-full" onClick={handleTryOn} disabled={!canGenerate}>
+              <Scan className="h-5 w-5" /> Generate Demo Preview
             </Button>
-
-            {!imageFile && (
-              <p className="text-center text-xs text-muted-foreground">
-                Upload a photo to continue.
-              </p>
-            )}
-
-            {imageFile && !consent && (
-              <p className="text-center text-xs text-muted-foreground">
-                Tick the consent checkbox above to enable the preview.
-              </p>
-            )}
           </section>
         </div>
       ) : eligibleLoading || (urlProductId && urlProductLoading) ? (
