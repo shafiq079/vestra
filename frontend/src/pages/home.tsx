@@ -29,25 +29,21 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Technology section */}
-      <section className="bg-[#161616] py-12 lg:py-14">
+      {/* Technology banner */}
+      <section className="bg-ai-background py-12">
         <div className="container-vestra">
-          <p className="text-center text-xs uppercase tracking-[0.2em] text-white/50 font-medium mb-8">Smarter Shopping, Built Into VESTRA</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <Link to="/virtual-fitting-room" className="group flex flex-col h-full p-7 bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl hover:border-white/20 motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-[#161616]">
-              <div className="p-3 rounded-lg bg-white/5 border border-white/10 mb-5 w-fit"><Scan className="h-8 w-8 text-ai" /></div>
-              <h3 className="font-display text-xl text-white">Virtual Try-On</h3>
-              <p className="mt-2 text-sm text-white/60 leading-relaxed">See selected pieces on yourself before buying.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Link to="/virtual-fitting-room" className="flex items-start gap-4 p-6 bg-card rounded-xl hover:shadow-md transition-shadow">
+              <div className="p-3 bg-ai-background rounded-lg"><Scan className="h-6 w-6 text-ai" /></div>
+              <div><h3 className="font-semibold">Virtual Try-On</h3><p className="text-sm text-muted-foreground mt-1">See how garments look on you before buying.</p></div>
             </Link>
-            <Link to="/size-guide" className="group flex flex-col h-full p-7 bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl hover:border-white/20 motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-[#161616]">
-              <div className="p-3 rounded-lg bg-white/5 border border-white/10 mb-5 w-fit"><Ruler className="h-8 w-8 text-ai" /></div>
-              <h3 className="font-display text-xl text-white">Find Your Best Size</h3>
-              <p className="mt-2 text-sm text-white/60 leading-relaxed">Get a size recommendation using your measurements and fit preferences.</p>
+            <Link to="/size-guide" className="flex items-start gap-4 p-6 bg-card rounded-xl hover:shadow-md transition-shadow">
+              <div className="p-3 bg-ai-background rounded-lg"><Ruler className="h-6 w-6 text-ai" /></div>
+              <div><h3 className="font-semibold">Size Recommendation</h3><p className="text-sm text-muted-foreground mt-1">Get your perfect size with AI-powered measurements.</p></div>
             </Link>
-            <Link to="/account/recommendations" className="group flex flex-col h-full p-7 bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl hover:border-white/20 motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-[#161616]">
-              <div className="p-3 rounded-lg bg-white/5 border border-white/10 mb-5 w-fit"><Sparkles className="h-8 w-8 text-ai" /></div>
-              <h3 className="font-display text-xl text-white">Personalised Picks</h3>
-              <p className="mt-2 text-sm text-white/60 leading-relaxed">Discover products matched to your style and preferences.</p>
+            <Link to="/account/recommendations" className="flex items-start gap-4 p-6 bg-card rounded-xl hover:shadow-md transition-shadow">
+              <div className="p-3 bg-ai-background rounded-lg"><Sparkles className="h-6 w-6 text-ai" /></div>
+              <div><h3 className="font-semibold">Personalised Picks</h3><p className="text-sm text-muted-foreground mt-1">Recommendations tailored to your style and fit.</p></div>
             </Link>
           </div>
         </div>
