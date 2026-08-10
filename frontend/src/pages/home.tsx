@@ -30,20 +30,89 @@ export function HomePage() {
       </section>
 
       {/* Technology banner */}
-      <section className="bg-ai-background py-12">
-        <div className="container-vestra">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Link to="/virtual-fitting-room" className="flex items-start gap-4 p-6 bg-card rounded-xl hover:shadow-md transition-shadow">
-              <div className="p-3 bg-ai-background rounded-lg"><Scan className="h-6 w-6 text-ai" /></div>
-              <div><h3 className="font-semibold">Virtual Try-On</h3><p className="text-sm text-muted-foreground mt-1">See how garments look on you before buying.</p></div>
+      <section className="border-y border-border bg-ai-background">
+        <div className="container-vestra py-7 md:py-8">
+          <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Shop with confidence
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3">
+            {/* Virtual Try-On */}
+            <Link
+              to="/virtual-fitting-room"
+              className="group flex min-h-[135px] flex-col justify-between py-5 md:pr-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div>
+                <Scan
+                  className="h-6 w-6 text-ai"
+                  aria-hidden="true"
+                />
+
+                <h3 className="mt-4 font-display text-xl">
+                  Virtual Try-On
+                </h3>
+
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                  Preview selected pieces on yourself before deciding.
+                </p>
+              </div>
+
+              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
+                Try it
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+              </span>
             </Link>
-            <Link to="/size-guide" className="flex items-start gap-4 p-6 bg-card rounded-xl hover:shadow-md transition-shadow">
-              <div className="p-3 bg-ai-background rounded-lg"><Ruler className="h-6 w-6 text-ai" /></div>
-              <div><h3 className="font-semibold">Size Recommendation</h3><p className="text-sm text-muted-foreground mt-1">Get your perfect size with AI-powered measurements.</p></div>
+
+            {/* Size Recommendation */}
+            <Link
+              to="/size-guide"
+              className="group flex min-h-[135px] flex-col justify-between border-t border-border py-5 md:border-l md:border-t-0 md:px-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div>
+                <Ruler
+                  className="h-6 w-6 text-ai"
+                  aria-hidden="true"
+                />
+
+                <h3 className="mt-4 font-display text-xl">
+                  Size Recommendation
+                </h3>
+
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                  Find a recommended size using your measurements and fit preferences.
+                </p>
+              </div>
+
+              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
+                Find your size
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+              </span>
             </Link>
-            <Link to="/account/recommendations" className="flex items-start gap-4 p-6 bg-card rounded-xl hover:shadow-md transition-shadow">
-              <div className="p-3 bg-ai-background rounded-lg"><Sparkles className="h-6 w-6 text-ai" /></div>
-              <div><h3 className="font-semibold">Personalised Picks</h3><p className="text-sm text-muted-foreground mt-1">Recommendations tailored to your style and fit.</p></div>
+
+            {/* Personalised Picks */}
+            <Link
+              to="/account/recommendations"
+              className="group flex min-h-[135px] flex-col justify-between border-t border-border py-5 md:border-l md:border-t-0 md:pl-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div>
+                <Sparkles
+                  className="h-6 w-6 text-ai"
+                  aria-hidden="true"
+                />
+
+                <h3 className="mt-4 font-display text-xl">
+                  Personalised Picks
+                </h3>
+
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                  Discover products matched to your preferences and fit.
+                </p>
+              </div>
+
+              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
+                Discover
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+              </span>
             </Link>
           </div>
         </div>
