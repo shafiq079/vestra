@@ -30,37 +30,24 @@ export function HomePage() {
       </section>
 
       {/* Technology section */}
-      <section className="bg-primary text-primary-foreground py-16 lg:py-20">
+      <section className="bg-[#161616] py-12 lg:py-14">
         <div className="container-vestra">
-          <div className="max-w-2xl mb-10 lg:mb-12">
-            <p className="text-xs uppercase tracking-[0.2em] text-ai/80 font-medium">Smarter Shopping</p>
-            <h2 className="font-display text-3xl md:text-4xl lg:text-5xl mt-3 text-balance">Designed around how you actually shop</h2>
-            <p className="mt-4 text-base text-primary-foreground/70 max-w-xl text-pretty">Technology that helps you choose with more confidence, without getting in the way of your style.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-primary-foreground/10 border border-primary-foreground/10 rounded-xl overflow-hidden">
-            <Link to="/virtual-fitting-room" className="group flex flex-col h-full p-8 bg-primary hover:bg-primary-foreground/[0.04] motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-primary">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-3 rounded-lg border border-primary-foreground/15"><Scan className="h-7 w-7 text-ai" /></div>
-                <span className="font-display text-2xl text-primary-foreground/30">01</span>
-              </div>
-              <h3 className="font-display text-xl lg:text-2xl">Virtual Try-On</h3>
-              <p className="mt-2 text-sm text-primary-foreground/70 leading-relaxed">Preview selected pieces on yourself before deciding.</p>
+          <p className="text-center text-xs uppercase tracking-[0.2em] text-white/50 font-medium mb-8">Smarter Shopping, Built Into VESTRA</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <Link to="/virtual-fitting-room" className="group flex flex-col h-full p-7 bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl hover:border-white/20 motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-[#161616]">
+              <div className="p-3 rounded-lg bg-white/5 border border-white/10 mb-5 w-fit"><Scan className="h-8 w-8 text-ai" /></div>
+              <h3 className="font-display text-xl text-white">Virtual Try-On</h3>
+              <p className="mt-2 text-sm text-white/60 leading-relaxed">See selected pieces on yourself before buying.</p>
             </Link>
-            <Link to="/size-guide" className="group flex flex-col h-full p-8 bg-primary hover:bg-primary-foreground/[0.04] motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-primary">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-3 rounded-lg border border-primary-foreground/15"><Ruler className="h-7 w-7 text-ai" /></div>
-                <span className="font-display text-2xl text-primary-foreground/30">02</span>
-              </div>
-              <h3 className="font-display text-xl lg:text-2xl">Find Your Best Size</h3>
-              <p className="mt-2 text-sm text-primary-foreground/70 leading-relaxed">Get a size recommendation based on your measurements and fit preferences.</p>
+            <Link to="/size-guide" className="group flex flex-col h-full p-7 bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl hover:border-white/20 motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-[#161616]">
+              <div className="p-3 rounded-lg bg-white/5 border border-white/10 mb-5 w-fit"><Ruler className="h-8 w-8 text-ai" /></div>
+              <h3 className="font-display text-xl text-white">Find Your Best Size</h3>
+              <p className="mt-2 text-sm text-white/60 leading-relaxed">Get a size recommendation using your measurements and fit preferences.</p>
             </Link>
-            <Link to="/account/recommendations" className="group flex flex-col h-full p-8 bg-primary hover:bg-primary-foreground/[0.04] motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-primary">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-3 rounded-lg border border-primary-foreground/15"><Sparkles className="h-7 w-7 text-ai" /></div>
-                <span className="font-display text-2xl text-primary-foreground/30">03</span>
-              </div>
-              <h3 className="font-display text-xl lg:text-2xl">Personalised Picks</h3>
-              <p className="mt-2 text-sm text-primary-foreground/70 leading-relaxed">Discover pieces matched to your style, preferences and fit.</p>
+            <Link to="/account/recommendations" className="group flex flex-col h-full p-7 bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl hover:border-white/20 motion-safe:hover:-translate-y-0.5 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2 focus-visible:ring-offset-[#161616]">
+              <div className="p-3 rounded-lg bg-white/5 border border-white/10 mb-5 w-fit"><Sparkles className="h-8 w-8 text-ai" /></div>
+              <h3 className="font-display text-xl text-white">Personalised Picks</h3>
+              <p className="mt-2 text-sm text-white/60 leading-relaxed">Discover products matched to your style and preferences.</p>
             </Link>
           </div>
         </div>
