@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, GripVertical, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Image as ImageIcon, CircleAlert as AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,7 +71,8 @@ const productSchema = z.object({
 type FormValues = z.infer<typeof productSchema>;
 
 const categoryOptions = ['dresses', 'tops', 'knitwear', 'trousers', 'outerwear', 'jumpsuits', 'activewear', 'skirts'];
-const collectionOptions = ['autumn-edit', 'workwear-edit', 'weekend-essentials', ''];
+const NO_COLLECTION_VALUE = '__none__';
+const collectionOptions = ['autumn-edit', 'workwear-edit', 'weekend-essentials'];
 const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '30W 30L', '32W 30L', '34W 32L', '36W 32L'];
 const badgeOptions: ProductBadge[] = ['new', 'sale', 'bestseller', 'exclusive'];
 const sizeModelKeys = ['dresses_women', 'tops_women', 'knitwear_women', 'trousers_women', 'outerwear_women', 'outerwear_men', 'knitwear_men', 'shirts_men', 'trousers_men', 'jumpsuits_women', 'activewear_women'];
@@ -283,11 +284,11 @@ export function ProductForm({ product, mode }: ProductFormProps) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="collection">Collection (optional)</Label>
-            <Select value={watch('collection') || ''} onValueChange={(v) => setValue('collection', v)}>
+            <Select value={watch('collection') || NO_COLLECTION_VALUE} onValueChange={(v) => setValue('collection', v === NO_COLLECTION_VALUE ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {collectionOptions.filter((c) => c).map((c) => <SelectItem key={c} value={c}>{c.replace(/-/g, ' ')}</SelectItem>)}
+                <SelectItem value={NO_COLLECTION_VALUE}>None</SelectItem>
+                {collectionOptions.map((c) => <SelectItem key={c} value={c}>{c.replace(/-/g, ' ')}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
