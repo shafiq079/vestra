@@ -10,9 +10,36 @@ export const mockCategories: Category[] = [
 ];
 
 export const mockCollections: Collection[] = [
-  { id: 'col1', name: 'Autumn Edit', slug: 'autumn-edit', description: 'Rich textures and warm layers for the new season. Curated pieces that transition effortlessly from crisp mornings to golden evenings.', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200&q=80', season: 'Autumn 2024', isActive: true },
-  { id: 'col2', name: 'The Workwear Edit', slug: 'workwear-edit', description: 'Tailored essentials for the modern professional. Sharp lines, considered fabrics, and versatile pieces that work as hard as you do.', image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43a?w=1200&q=80', season: 'Year-round', isActive: true },
-  { id: 'col3', name: 'Weekend Essentials', slug: 'weekend-essentials', description: 'Relaxed silhouettes and easy-wear fabrics for your downtime. Comfortable pieces that never compromise on style.', image: 'https://images.unsplash.com/photo-1445205170140-6ab0a0fac000?w=1200&q=80', season: 'Year-round', isActive: true },
+  {
+    id: 'col1',
+    name: 'Autumn Edit',
+    slug: 'autumn-edit',
+    description:
+      'Rich textures and warm layers for the new season. Curated pieces that transition effortlessly from crisp mornings to golden evenings.',
+    image: '/images/collections/autumn-edit.jpg',
+    season: 'Autumn 2024',
+    isActive: true,
+  },
+  {
+    id: 'col2',
+    name: 'The Workwear Edit',
+    slug: 'workwear-edit',
+    description:
+      'Tailored essentials for the modern professional. Sharp lines, considered fabrics, and versatile pieces that work as hard as you do.',
+    image: '/images/collections/workwear-edit.jpg',
+    season: 'Year-round',
+    isActive: true,
+  },
+  {
+    id: 'col3',
+    name: 'Weekend Essentials',
+    slug: 'weekend-essentials',
+    description:
+      'Relaxed silhouettes and easy-wear fabrics for your downtime. Comfortable pieces that never compromise on style.',
+    image: '/images/collections/weekend-essentials.jpg',
+    season: 'Year-round',
+    isActive: true,
+  },
 ];
 
 export function getCategoryBySlug(slug: string): Category | undefined {

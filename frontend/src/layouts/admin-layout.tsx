@@ -184,7 +184,7 @@ export function AdminLayout() {
         </div>
 
         {/* Scrollable sidebar navigation */}
-        <nav className="flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
+        <nav className="scrollbar-vestra flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
           {adminNavGroups.map((group) => (
             <div key={group.group}>
               <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
