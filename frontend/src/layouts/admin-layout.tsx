@@ -106,7 +106,7 @@ export function AdminLayout() {
 
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)} />}
 
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
+      <div className="min-w-0 flex-1 lg:ml-64 flex flex-col min-h-screen">
         <header className="sticky top-0 z-30 bg-card border-b border-border px-4 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button className="lg:hidden text-muted-foreground" onClick={() => setMobileOpen(true)} aria-label="Open sidebar">
@@ -129,9 +129,9 @@ export function AdminLayout() {
             </div>
           </div>
         </header>
-        <div className="flex-1 p-4 lg:p-8">
+        <main className="min-w-0 flex-1 p-4 lg:p-8">
           <Outlet />
-        </div>
+        </main>
       </div>
     </div>
   );
