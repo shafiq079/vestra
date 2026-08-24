@@ -21,6 +21,36 @@ Every other clause in `agents.md` still applies unchanged — including the fron
 
 ---
 
+## Repository architecture — two independent applications
+
+**This is fixed. Do not change it, and do not reintroduce npm workspaces.**
+
+`frontend/` and `backend/` live in one Git repository but are **two fully independent Node applications**, each installed, built, and deployed on its own:
+
+| Application | Root for install/build | Deployment target | Deployment root |
+|---|---|---|---|
+| `frontend/` | `frontend/package.json` + `frontend/package-lock.json` | **Vercel** | `frontend/` |
+| `backend/` | `backend/package.json` + `backend/package-lock.json` | **Render** | `backend/` |
+
+Hard rules:
+
+- **No npm workspaces.** The root `package.json` has **no `workspaces` field** and must never regain one. An earlier iteration of Phase 0B registered `backend` as a workspace; that approach was **reversed** in favour of independence and must not be restored.
+- **No root `package-lock.json`.** Dependency locking lives *only* in `frontend/package-lock.json` and `backend/package-lock.json`. Never create a lockfile at the repository root.
+- **Each application installs from its own manifest and its own lockfile only.** Install backend dependencies with `npm install` **run inside `backend/`**, which updates `backend/package-lock.json` only. Never install a backend dependency from the repository root, and never let one application's install touch the other's lockfile or `node_modules`.
+- **No shared `node_modules` assumption.** Neither application may rely on hoisting or on a root `node_modules` existing. `cd frontend && npm ci` and `cd backend && npm ci` must each succeed on their own from a clean checkout.
+- **Root scripts are convenience wrappers only** and must delegate with `npm --prefix`, never with `--workspace`:
+
+  ```
+  "dev":     "npm --prefix frontend run dev"
+  "build":   "npm --prefix frontend run build"
+  "preview": "npm --prefix frontend run preview"
+  ```
+
+  The root manifest declares no dependencies and is not required by either deployment. Both hosts build from their own subdirectory and never read it.
+- **Lockfiles must stay portable.** A committed lockfile must contain the native platform packages for *all* platforms npm resolves (Linux for Vercel/Render as well as the local development platform). Never repair a broken install by hand-placing packages into `node_modules`, and never present a build as passing when it only passes because of out-of-lockfile binaries.
+
+---
+
 ## Authorisation
 
 **Backend development is explicitly authorised.** Work in `backend/` no longer requires per-task permission to exist; it requires only that the specific task has been scoped and requested.
@@ -48,11 +78,11 @@ If backend work appears to require a frontend change before Phase 8, **stop and 
 
 ### Files that need owner approval before being touched
 
-- `package.json` (root) and `frontend/package.json` — the root file has exactly two authorised exceptions, each gated on the owner explicitly requesting that phase's implementation:
-  - **Phase 0B** may add `backend` to the `workspaces` array. It also creates the minimal `private: true`, metadata-only `backend/package.json` that makes the workspace resolvable — no dependencies and no scripts at that point — and the resulting root `package-lock.json` update is an expected, legitimate outcome of adding the workspace. **No root scripts in this phase.**
-  - **Phase 1** may add the backend-delegating root scripts (`dev:backend`, `build:backend`, `test:backend`, and `start:backend` if useful), because that is the phase which creates the backend scripts they call. A root script must never be added before the backend script it delegates to exists.
+- `package.json` (root) — the root file has exactly one remaining authorised exception, gated on the owner explicitly requesting that phase's implementation:
+  - **Phase 1** may add the backend-delegating root scripts (`dev:backend`, `build:backend`, `test:backend`, and `start:backend` if useful), because that is the phase which creates the backend scripts they call. They must use `npm --prefix backend run <script>` — **never** `--workspace`. A root script must never be added before the backend script it delegates to exists.
 
-  In both cases the existing `dev` / `build` / `preview` scripts keep their names and behaviour. Nothing else may modify the root manifest.
+  Phase 0B's earlier `workspaces` exception is **withdrawn**: the root manifest now carries no `workspaces` field, and adding one back is prohibited (see *Repository architecture* above). The existing `dev` / `build` / `preview` scripts keep their names and their `npm --prefix frontend` form. Nothing else may modify the root manifest.
+- `frontend/package.json` and `frontend/package-lock.json` — the manifest is owner-approval-only. `frontend/package-lock.json` may be **synchronised** to match the manifest when it is provably stale (`npm install --package-lock-only`, which preserves existing pins), but dependencies must never be intentionally upgraded and `npm audit fix` must never be run.
 - `frontend/` source files (see above)
 - `.gitignore`
 - `agents.md`
