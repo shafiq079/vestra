@@ -2,7 +2,7 @@
   "name": "vestra",
   "private": true,
   "version": "0.0.1",
-  "workspaces": ["frontend"],
+  "workspaces": ["frontend", "backend"],
   "scripts": {
     "dev": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=frontend",

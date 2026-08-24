@@ -1,0 +1,6 @@
+{
+  "name": "vestra-backend",
+  "private": true,
+  "version": "0.0.1",
+  "description": "VESTRA backend — Node.js/Express/TypeScript REST API over MongoDB Atlas. Phase 0B registers this directory as an npm workspace only; dependencies, scripts and source code arrive in Phase 1."
+}
