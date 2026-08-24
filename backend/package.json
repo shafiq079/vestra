@@ -2,5 +2,38 @@
   "name": "vestra-backend",
   "private": true,
   "version": "0.0.1",
-  "description": "VESTRA backend — Node.js/Express/TypeScript REST API over MongoDB Atlas. Independent of the frontend package: installs from its own lockfile and deploys to Render with backend/ as the service root. Phase 0B establishes this manifest only; dependencies, scripts and source code arrive in Phase 1."
+  "description": "VESTRA backend — Node.js/Express/TypeScript REST API over MongoDB Atlas. Independent of the frontend package: installs from its own lockfile and deploys to Render with backend/ as the service root.",
+  "main": "dist/server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "mongoose": "^9.9.3",
+    "morgan": "^1.11.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^26.3.0",
+    "@types/supertest": "^7.2.1",
+    "mongodb-memory-server": "^11.2.0",
+    "supertest": "^7.2.2",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
 }
