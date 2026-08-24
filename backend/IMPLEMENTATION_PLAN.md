@@ -1,6 +1,6 @@
 # VESTRA — Backend Implementation Plan
 
-**Status:** agreed sequence — Phase 0A complete, Phase 0B not started
+**Status:** agreed sequence — Phase 0A complete, Phase 0B implemented and awaiting review
 **Branch:** `backend-development`
 **Scope owner:** project owner (dissertation author)
 
@@ -41,6 +41,24 @@ The frontend already exists and defines the contract. **The backend conforms to 
 | Route names | the 11 modules in `frontend/src/services/` |
 | Mock toggle | `VITE_USE_MOCK_API` must keep working |
 
+### Repository and deployment layout — two independent applications
+
+One Git repository, **two independent npm applications**. This is fixed. **npm workspaces are not used and must not be reintroduced.**
+
+| Application | Own manifest + lockfile | Deploys to | Deployment root |
+|---|---|---|---|
+| `frontend/` | `frontend/package.json` + `frontend/package-lock.json` | Vercel | `frontend/` |
+| `backend/` | `backend/package.json` + `backend/package-lock.json` | Render | `backend/` |
+
+Consequences that bind every phase:
+
+- **No root `package-lock.json`.** Dependency locking lives inside each application only.
+- **No `workspaces` field in the root `package.json`.**
+- Each application installs from **its own** manifest and lockfile. `cd frontend && npm ci` and `cd backend && npm ci` must each succeed on their own, with no root `node_modules` present.
+- **Backend dependencies are installed inside `backend/`** and update `backend/package-lock.json` only. Never install a backend dependency from the repository root.
+- Root `package.json` scripts are **developer convenience wrappers only**, delegating with `npm --prefix <dir> run <script>` — never `--workspace`.
+- Committed lockfiles must stay **portable** for Vercel/Render Linux builds. Never repair a local install by hand-placing packages into `node_modules`, and never report a build as passing when it only passes because of out-of-lockfile binaries.
+
 ---
 
 ## Testing policy — tests start at Phase 1, not Phase 11
@@ -60,7 +78,7 @@ Consequence: by the time Phase 11 begins, every route group already has working 
 | Phase | Title | Depends on |
 |---|---|---|
 | 0A | Development setup — governance and architecture documents | — |
-| 0B | Development setup — minimal `backend/package.json` + workspace registration (no scripts) | 0A |
+| 0B | Development setup — independent `backend/package.json` + `backend/package-lock.json`, root `workspaces` removed (no scripts) | 0A |
 | 1 | Express/TypeScript foundation + MongoDB connection + health endpoint + test tooling + root backend scripts | 0A **and** 0B |
 | 2 | Database/schema design | 1 |
 | 3 | Product catalogue, categories and collections API | 2 |
@@ -92,7 +110,7 @@ Establish the governance, scope boundaries, and agreed roadmap for backend devel
 - `backend/IMPLEMENTATION_PLAN.md` (this document): the full Phase 0A–14 sequence with objectives, deliverables, dependencies, and completion criteria.
 - Confirmation of the existing `backend/` scaffold: `src/{config,controllers,middleware,models,routes,services,utils,validators}`, `tests/`, `uploads/`.
 - Confirmation that `.gitignore` already excludes `.env` and `.env.*` while permitting `.env.example`.
-- Recorded finding: the root `package.json` `workspaces` array lists `frontend` only, and `backend/` contains no `package.json`, so `backend` is **not** yet a valid npm workspace. Creating the minimal manifest and wiring the workspace in are both deferred to Phase 0B.
+- Recorded finding: at the time of Phase 0A the root `package.json` carried a `workspaces` array and `backend/` contained no `package.json`. Both were addressed in Phase 0B — which, after the owner's later decision, **removed the root `workspaces` field entirely** and gave `backend/` its own independent manifest and lockfile instead.
 
 **Dependencies**
 None. This is the entry step.
@@ -103,46 +121,49 @@ None. This is the entry step.
 - No `.env` contents have been read or displayed.
 - `git status` shows only the new documentation files, and `git diff --check` is clean.
 
-### Phase 0B — Backend workspace and tooling wiring
+### Phase 0B — Independent backend package (no workspaces)
 
 **Objective**
-Make `backend/` a valid, recognised npm workspace so that Phase 1 can install dependencies through the normal workflow — without altering the frontend build in any way. **Workspace registration only: no scripts, no dependencies, no code.**
+Give `backend/` its own self-contained npm package — its own `package.json` and its own `package-lock.json` — so that Phase 1 can install backend dependencies entirely inside `backend/`, without npm workspaces and without any shared dependency tree. **Package independence only: no scripts, no dependencies, no code.**
 
-> **Phase 0B and Phase 1 are the only steps before Phase 8 that may modify the root `package.json`, and each may do so *only* when the project owner explicitly requests that phase's implementation.** Phase 0B may change the `workspaces` array; Phase 1 may add the backend-delegating scripts. Until the relevant request is made, the root `package.json` stays untouched. Recording the intent here is not authorisation to act on it.
+> **Superseded approach — do not restore.** An earlier iteration of this phase registered `backend` in a root `workspaces` array and let both applications share one root `package-lock.json`. That was **reversed** by owner decision in favour of two fully independent applications (see *Repository and deployment layout* above). The root `package.json` now has **no `workspaces` field**, there is **no root `package-lock.json`**, and neither may be reintroduced.
 
-**Sequencing requirement:** npm resolves a workspace by reading a `package.json` in the workspace directory. Adding `backend` to the `workspaces` array without one present would make `npm install` fail. **Phase 0B must therefore create a minimal `backend/package.json` itself** — creating it in Phase 1 would be too late.
+> **Phase 0B and Phase 1 are the only steps before Phase 8 that may modify the root `package.json`, and each may do so *only* when the project owner explicitly requests that phase's implementation.** Phase 0B removes the `workspaces` field and converts the frontend convenience scripts to `npm --prefix`; Phase 1 may add the backend-delegating scripts. Recording the intent here is not authorisation to act on it.
 
 **Why no scripts in this phase:** a root `dev:backend` or `test:backend` script would delegate to a `backend` script that does not exist yet, so it would be broken from the moment it was written. Root convenience scripts are therefore created in **Phase 1**, at the same time as the backend scripts they call.
 
-**Main deliverables — exactly four things**
-1. **A minimal `backend/package.json`, created in this phase**, so that `backend` is a valid npm workspace:
+**Main deliverables — exactly five things**
+1. **A minimal `backend/package.json`**, so that `backend/` is an installable package in its own right:
    - metadata only — `name`, `version`, `description`
    - `"private": true`, matching the root and frontend convention
    - **no `dependencies` and no `devDependencies`** — nothing is installed in this phase
    - **no `scripts`** — the real `dev` / `build` / `start` / `test` scripts are Phase 1's job
    - **no backend source code, no `tsconfig.json`, no entry point** — this phase creates a manifest, not an application
-2. **Add `backend` to the root `package.json` `workspaces` array**, alongside the existing `frontend` entry. This is the *only* change to the root manifest in this phase — **no new root scripts**, and no change to the existing `dev` / `build` / `preview` scripts.
-3. **Update the root `package-lock.json` by running `npm install`.** The lockfile will change to record the new workspace link. **This is a legitimate and expected result of adding the workspace, not an unintended side effect** — report it as a changed file. No new third-party package should appear in the lockfile diff, since this phase installs no dependencies.
-4. **Verify the existing frontend scripts remain unchanged**, in behaviour as well as in name — `npm run dev`, `npm run build`, and `npm run preview` must work exactly as they did before.
+2. **A `backend/package-lock.json` belonging only to `backend`**, generated by running `npm install` **inside `backend/`**. With no dependencies declared it is a minimal lockfile recording just the root package — that is correct and expected.
+3. **Remove the `workspaces` field from the root `package.json` entirely**, and convert the existing frontend convenience scripts from workspace syntax to independent prefix syntax — `npm --prefix frontend run dev` / `build` / `preview`. **No new root scripts**; the root manifest declares no dependencies and exists purely as developer convenience.
+4. **Delete the root `package-lock.json`.** Dependency locking lives only in `frontend/package-lock.json` and `backend/package-lock.json`.
+5. **Ensure `frontend/package-lock.json` is valid and in sync with `frontend/package.json`.** If it is stale, synchronise it with `npm install --package-lock-only` (which preserves existing pins). `frontend/package.json` itself must not change, dependencies must not be intentionally upgraded, and `npm audit fix` must not be run.
 
 **Supporting notes (not code changes)**
-- A recorded decision on the workspace layout: whether backend and frontend share the single root lockfile (npm workspaces default) or the backend is kept fully standalone. Document the choice and the reason.
+- The recorded layout decision: **two independent applications, one lockfile each, no workspaces** — chosen so `frontend/` deploys to Vercel and `backend/` deploys to Render from their own subdirectory roots, each installing only what it needs.
 - Any `.gitignore` addition the backend build genuinely needs (e.g. compiled `backend/dist`) is *proposed for owner approval*, not applied silently. Note that the existing root `.gitignore` already ignores `dist` at any depth, so this may well be unnecessary.
 
 **Dependencies**
-Phase 0A (governance and plan agreed). No dependency on Phase 1 — Phase 0B strictly precedes it, because Phase 1 cannot install into a workspace that does not resolve.
+Phase 0A (governance and plan agreed). No dependency on Phase 1 — Phase 0B strictly precedes it, because Phase 1 needs a `backend/package.json` and `backend/package-lock.json` to install into.
 
 **Completion criteria**
 - The owner explicitly requested this step before any `package.json` change was made.
 - `backend/package.json` exists, is `private: true`, carries metadata only, and declares **no** dependencies, **no** devDependencies, and **no** scripts.
+- `backend/package-lock.json` exists and belongs only to `backend`.
 - No backend source file, `tsconfig.json`, or entry point was created in this phase.
-- **The only change to the root `package.json` is the added `workspaces` entry** — no `dev:backend`, `build:backend`, `test:backend`, or `start:backend` script was added here, and no existing script was altered.
-- `npm install` at the root completes successfully and resolves **both** workspaces — `frontend` and `backend`.
-- The resulting root `package-lock.json` change is limited to registering the new workspace; no new third-party package appears in the diff.
-- `npm run dev`, `npm run build`, and `npm run preview` still behave exactly as before for the frontend — verified, not assumed.
-- `frontend/package.json` is unmodified.
-- The workspace-layout decision is written down.
-- The changed-file report names the root `package.json`, the new `backend/package.json`, and the root `package-lock.json`.
+- The root `package.json` has **no `workspaces` field**, and its `dev` / `build` / `preview` scripts use `npm --prefix frontend`. No `dev:backend`, `build:backend`, `test:backend`, or `start:backend` script was added here.
+- **No root `package-lock.json` exists.**
+- `cd frontend && npm ci` succeeds, and `cd frontend && npm run build` succeeds — from `frontend/` alone, with no root `node_modules` present.
+- `cd backend && npm ci` succeeds.
+- Root `npm run build` still builds the frontend, delegating via `npm --prefix frontend`.
+- `frontend/package.json` is unmodified; any `frontend/package-lock.json` change is a synchronisation, not an upgrade.
+- Committed lockfiles are **portable** — they contain the Linux native platform packages the Vercel/Render builds need, and no install or build was made to pass by hand-placing packages into `node_modules`.
+- The layout decision is written down.
 - No secret and no `.env` file entered the index.
 
 ---
@@ -153,7 +174,7 @@ Phase 0A (governance and plan agreed). No dependency on Phase 1 — Phase 0B str
 Stand up a minimal, type-safe, runnable Express server that connects to MongoDB Atlas and proves the whole path is alive via a health endpoint — no business logic yet — **and establish the test harness that every subsequent phase will extend.**
 
 **Main deliverables**
-- **Complete the existing `backend/package.json`** created in Phase 0B — this phase extends that manifest rather than creating it. Add the runtime and dev dependencies, the real scripts, and any engine or entry-point fields needed. Keep `private: true`. The `workspaces` registration is **not** done here — it was done in Phase 0B.
+- **Complete the existing `backend/package.json`** created in Phase 0B — this phase extends that manifest rather than creating it. Add the runtime and dev dependencies, the real scripts, and any engine or entry-point fields needed. Keep `private: true`. **Install from inside `backend/`**, so only `backend/package-lock.json` changes — never install backend dependencies from the repository root, and never add a `workspaces` field.
 - `backend/tsconfig.json` (strict mode) — created in this phase.
 - Runtime dependencies: `express`, `mongoose`, `dotenv`, `cors`, `helmet`, `morgan`. Dev: `typescript`, `ts-node`/`tsx`, `nodemon`, `@types/*`.
 - Application entry split into `app.ts` (middleware + router wiring, exportable for tests) and `server.ts` (listen + lifecycle), so the app can be tested without binding a port.
@@ -164,7 +185,7 @@ Stand up a minimal, type-safe, runnable Express server that connects to MongoDB 
 - CORS configured for the Vite dev origin.
 - `backend/.env.example` documenting every required variable **by name and purpose only** (e.g. `PORT`, `MONGODB_URI`, `NODE_ENV`, `CORS_ORIGIN`).
 - `npm run dev` / `npm run build` / `npm start` scripts; server listens on port 5000 to match the frontend default.
-- **Root convenience scripts, created here — not in Phase 0B — because they delegate to the backend scripts this phase introduces.** Add `dev:backend`, `build:backend`, `test:backend`, and `start:backend` if useful to the root `package.json`, each delegating via `npm run <script> --workspace=backend` to match the existing frontend delegation style. Every new root script must be runnable the moment it is added — a root script pointing at a non-existent backend script is a defect, not a placeholder. The existing `dev` / `build` / `preview` scripts must keep their current names and behaviour, unchanged.
+- **Root convenience scripts, created here — not in Phase 0B — because they delegate to the backend scripts this phase introduces.** Add `dev:backend`, `build:backend`, `test:backend`, and `start:backend` if useful to the root `package.json`, each delegating via `npm --prefix backend run <script>` to match the existing frontend delegation style. **Never `--workspace`** — there are no workspaces. Every new root script must be runnable the moment it is added — a root script pointing at a non-existent backend script is a defect, not a placeholder. The existing `dev` / `build` / `preview` scripts must keep their current names and behaviour, unchanged.
 
 **Test deliverables (the harness all later phases build on)**
 - Test runner configured for TypeScript — Jest or Vitest — with `supertest` for HTTP-level assertions against the exported `app`, plus a `npm test` script added to `backend/package.json`.
@@ -174,7 +195,7 @@ Stand up a minimal, type-safe, runnable Express server that connects to MongoDB 
 - Confirmation that the suite runs green from a clean checkout with no manual setup beyond environment variables.
 
 **Dependencies**
-**Phase 0A and Phase 0B — both unconditionally.** Phase 0A supplies the agreed governance and plan; Phase 0B supplies the resolvable `backend` workspace and the minimal `backend/package.json` this phase extends. Phase 0B cannot be bypassed: installing dependencies into `backend/` before it is a registered workspace with a valid manifest is out of sequence, and a standalone `backend/` install is **not** an acceptable substitute.
+**Phase 0A and Phase 0B — both unconditionally.** Phase 0A supplies the agreed governance and plan; Phase 0B supplies the independent `backend/package.json` and `backend/package-lock.json` this phase extends and installs into. Phase 0B cannot be bypassed: installing dependencies into `backend/` before it is a valid standalone package is out of sequence.
 
 **Completion criteria**
 - `backend/package.json` has been extended in place — Phase 0B's `private: true` metadata is preserved, not overwritten by a freshly generated manifest.
@@ -569,7 +590,7 @@ Deploy the hardened backend so the frontend can reach it from a hosted environme
 
 **Main deliverables**
 - Production build and start pipeline (`tsc` output run by `node`, not a dev runner).
-- Hosting configuration for the chosen platform, with the port bound from the environment.
+- Hosting configuration for **Render, with `backend/` as the service root** — installing from `backend/package-lock.json` only, with the port bound from the environment. The frontend deploys separately to Vercel with `frontend/` as its project root; the two deployments share no build.
 - Production environment variables set in the platform's secret store — **never** committed, and never printed.
 - MongoDB Atlas production readiness: separate database or cluster, least-privilege database user, IP/network access rules, and a backup expectation recorded.
 - Production CORS restricted to the deployed frontend origin.
@@ -681,7 +702,7 @@ Phase 13, and therefore all preceding phases.
 
 1. **One phase, one scoped task at a time.** Finish, report, stop.
 2. **Inspect before editing.** Read the existing backend code and the relevant frontend service and types first.
-3. **`backend/` is the write scope.** `frontend/` is read-only until Phase 8, and even then only service modules and environment configuration. The root `package.json` is off limits except in Phase 0B (`workspaces` entry) and Phase 1 (backend-delegating scripts), and in each case only on the owner's explicit request.
+3. **`backend/` is the write scope.** `frontend/` is read-only until Phase 8, and even then only service modules and environment configuration. The root `package.json` is off limits except in Phase 1 (backend-delegating `npm --prefix` scripts), and only on the owner's explicit request. **Never add a `workspaces` field and never create a root `package-lock.json`.**
 4. **Conform to the frontend contract.** `frontend/src/types/index.ts` and the `frontend/src/services/` route names are fixed points.
 5. **Every implementation phase ships its own tests.** From Phase 1 onward, a phase is not complete until tests covering the functionality it introduced exist and pass. Do not defer testing to Phase 11 — Phase 11 audits and hardens, it does not backfill.
 6. **Verify after changing.** Run the relevant build, type-check, and tests. Report the real outcome, including failures.
