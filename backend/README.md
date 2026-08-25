@@ -21,9 +21,26 @@ exist yet — Phase 2 covers schema design.
 | Framework | Express 5 |
 | Language | TypeScript (strict) |
 | Database | MongoDB Atlas |
-| ODM | Mongoose |
+| ODM | Mongoose 8 |
 | Env validation | Zod |
-| Tests | Vitest + Supertest + `mongodb-memory-server` |
+| Tests | Vitest 3 + Supertest + `mongodb-memory-server` 10 |
+
+### Node 18 compatibility
+
+`engines.node` is `>=18`, and every dependency is held to it. Mongoose, Vitest and
+`mongodb-memory-server` are deliberately kept on their **8.x / 3.x / 10.x** lines because
+the next major of each requires Node 20.19+ and would silently break the contract.
+
+The `overrides` entry pinning `vite` to `^6` exists for the same reason: Vitest 3 accepts
+`vite@^5 || ^6 || ^7`, but Vite 7 requires Node 20.19+, so an unconstrained install
+resolves a transitive dependency that Node 18 cannot run. Vite is not used by the backend
+itself — only by Vitest.
+
+Before raising any of these, check the target's real requirement rather than assuming:
+
+```bash
+npm view <package>@<version> engines
+```
 
 ## Getting started
 
