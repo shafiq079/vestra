@@ -317,4 +317,3 @@ an isolated in-memory MongoDB); see [backend/tests/README.md](backend/tests/READ
   next phase.
 - Read-only Git commands (`git status`, `git diff`, `git log`, `git branch --show-current`) are
   always fine.
-</content>

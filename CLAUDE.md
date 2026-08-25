@@ -22,4 +22,3 @@ used. Everything this file used to contain is either in `AGENTS.md` or already d
 implementation plan and the backend README — nothing was dropped.
 
 If a rule appears to be missing, add it to `AGENTS.md`, not to this file.
-</content>
