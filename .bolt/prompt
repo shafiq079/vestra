@@ -1,8 +1,8 @@
 This is the VESTRA fashion e-commerce dissertation project.
 
-Always read and follow /agents.md before making changes.
+Always read and follow /AGENTS.md before making changes. It is the authoritative working agreement; backend/IMPLEMENTATION_PLAN.md records the phase order.
 
-The current phase is frontend-only with mock services. Do not implement backend functionality, Supabase, Firebase or Bolt Database unless explicitly requested.
+Backend development is authorised and active, and frontend/ is read-only until the planned integration phase. Do not add Supabase, Firebase or Bolt Database.
 
 Preserve the existing React/Vite/TypeScript architecture, VESTRA design system, StorefrontLayout/AdminLayout separation, shared mock catalogue architecture and existing admin CRUD.
 
