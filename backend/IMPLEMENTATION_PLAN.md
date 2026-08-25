@@ -1,10 +1,10 @@
 # VESTRA — Backend Implementation Plan
 
-**Status:** agreed sequence — Phase 0A complete, Phase 0B implemented and awaiting review
-**Branch:** `backend-development`
+**Status:** Phase 0A complete · Phase 0B complete · **Phase 1 complete and merged** · **Phase 2 is next (not started)**
+**Integration branch:** `backend-development` — every phase is developed on its own scoped branch and merged in by pull request
 **Scope owner:** project owner (dissertation author)
 
-This document records the agreed, ordered sequence for building the VESTRA backend. It is the single source of truth for *what happens when*. Working rules live in [CLAUDE.md](../CLAUDE.md); standing project rules live in [agents.md](../agents.md).
+This document records the agreed, ordered sequence for building the VESTRA backend. It is the single source of truth for *what happens when*. The working agreement — scope boundaries, contracts, secret handling and Git workflow — lives in [AGENTS.md](../AGENTS.md), which is authoritative for *how* work is done.
 
 Phases are executed **one at a time, in order**. A phase is not started until its dependencies are met and the owner has requested it.
 
@@ -75,24 +75,24 @@ Consequence: by the time Phase 11 begins, every route group already has working 
 
 ## Phase index
 
-| Phase | Title | Depends on |
-|---|---|---|
-| 0A | Development setup — governance and architecture documents | — |
-| 0B | Development setup — independent `backend/package.json` + `backend/package-lock.json`, root `workspaces` removed (no scripts) | 0A |
-| 1 | Express/TypeScript foundation + MongoDB connection + health endpoint + test tooling + root backend scripts | 0A **and** 0B |
-| 2 | Database/schema design | 1 |
-| 3 | Product catalogue, categories and collections API | 2 |
-| 4 | Authentication, users, profiles and addresses | 2 |
-| 5 | Cart and wishlist | 3, 4 |
-| 6 | Checkout, orders and inventory updates | 3, 4, 5 |
-| 7 | Admin APIs | 3, 4, 6 |
-| 8 | Gradual frontend/backend integration | 3–7 |
-| 9 | Product recommendations | 3, 6 |
-| 10 | Virtual Try-On backend/provider abstraction | 1, 3, 4 |
-| 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) |
-| 12 | Backend deployment and production configuration | 11 |
-| 13 | ML Size Recommendation integration (**LAST**) | 12 + client-supplied model |
-| 14 | Final end-to-end/dissertation validation | 13 |
+| Phase | Title | Depends on | Status |
+|---|---|---|---|
+| 0A | Development setup — governance and architecture documents | — | **Complete** |
+| 0B | Development setup — independent `backend/package.json` + `backend/package-lock.json`, root `workspaces` removed (no scripts) | 0A | **Complete** |
+| 1 | Express/TypeScript foundation + MongoDB connection + health endpoint + test tooling + root backend scripts | 0A **and** 0B | **Complete and merged** |
+| 2 | Database/schema design | 1 | **Next — not started** |
+| 3 | Product catalogue, categories and collections API | 2 | Not started |
+| 4 | Authentication, users, profiles and addresses | 2 | Not started |
+| 5 | Cart and wishlist | 3, 4 | Not started |
+| 6 | Checkout, orders and inventory updates | 3, 4, 5 | Not started |
+| 7 | Admin APIs | 3, 4, 6 | Not started |
+| 8 | Gradual frontend/backend integration | 3–7 | Not started |
+| 9 | Product recommendations | 3, 6 | Not started |
+| 10 | Virtual Try-On backend/provider abstraction | 1, 3, 4 | Not started |
+| 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) | Not started |
+| 12 | Backend deployment and production configuration | 11 | Not started |
+| 13 | ML Size Recommendation integration (**LAST**) | 12 + client-supplied model | Blocked — awaiting client model |
+| 14 | Final end-to-end/dissertation validation | 13 | Not started |
 
 ---
 
@@ -106,7 +106,7 @@ Phase 0 is split into two explicit steps. **0A is documentation only and is comp
 Establish the governance, scope boundaries, and agreed roadmap for backend development before any code or configuration is written, so that later work is controlled and reviewable rather than exploratory.
 
 **Main deliverables**
-- `CLAUDE.md` at the repository root: backend development authorised, `backend/` as primary write scope, frontend read-only, stack fixed, secret-handling rules, one-task-at-a-time workflow, Git restrictions.
+- A root working-agreement document: backend development authorised, `backend/` as primary write scope, frontend read-only, stack fixed, secret-handling rules, one-task-at-a-time workflow, Git restrictions. Delivered at the time as `CLAUDE.md`; **since consolidated into [AGENTS.md](../AGENTS.md)**, which is now the authoritative working agreement. `CLAUDE.md` is retained only as a pointer.
 - `backend/IMPLEMENTATION_PLAN.md` (this document): the full Phase 0A–14 sequence with objectives, deliverables, dependencies, and completion criteria.
 - Confirmation of the existing `backend/` scaffold: `src/{config,controllers,middleware,models,routes,services,utils,validators}`, `tests/`, `uploads/`.
 - Confirmation that `.gitignore` already excludes `.env` and `.env.*` while permitting `.env.example`.
@@ -116,7 +116,7 @@ Establish the governance, scope boundaries, and agreed roadmap for backend devel
 None. This is the entry step.
 
 **Completion criteria**
-- Both documents exist and are internally consistent with `agents.md`.
+- Both documents exist and are internally consistent with `AGENTS.md`.
 - No source code, dependency, or `package.json` change has been made.
 - No `.env` contents have been read or displayed.
 - `git status` shows only the new documentation files, and `git diff --check` is clean.
@@ -209,6 +209,24 @@ Stand up a minimal, type-safe, runnable Express server that connects to MongoDB 
 - **Tests run against the isolated test database, demonstrably not the development database.**
 - No secret appears in source, logs, test fixtures, or documentation.
 - The frontend still builds and still runs unchanged in mock mode.
+
+**Implementation status — complete and merged**
+
+Delivered and merged into `backend-development`. What was actually verified, and what was not:
+
+*Verified*
+- The Express 5 / TypeScript foundation is complete: `app.ts` / `server.ts` split, `src/config/env.ts` (Zod, fail-fast, secret-safe), `src/config/database.ts` (Mongoose connection, events, graceful shutdown), `GET /api/health`, the centralised error handler and 404 handler emitting `{ code, message, details? }`, CORS, and `helmet`.
+- `npm run build` and `npm run typecheck` both pass with zero TypeScript errors under strict mode.
+- **31 backend tests pass** (Vitest + Supertest, 4 files), covering the health endpoint, the 404 shape, the error-shape contract with no stack leakage, the lifecycle/shutdown routine, and the test-database isolation guarantees themselves.
+- The health, error and runtime boot flow was exercised end to end — including a real server start returning `200` from `GET /api/health` with `database.status: "connected"` — **against an isolated `mongodb-memory-server` instance**.
+- Tests run against that isolated in-memory database, demonstrably not a development or production database. See [tests/README.md](tests/README.md).
+
+*Not verified — environment limitation*
+- **A real MongoDB Atlas connection was not established or verified on the development machine.** The Atlas attempt failed during the `SRV`/`TXT` DNS resolution required by `mongodb+srv://`, before MongoDB Atlas could be reached.
+- The observed failure was therefore an **environment/network DNS limitation, not an application-code failure**. Changing the Atlas IP access list could not resolve it because DNS resolution occurs before Atlas evaluates the incoming connection. Atlas credentials and authentication were not verified from this machine because Atlas was never reached.
+- Consequently the explicit Phase 1 completion criterion *"`npm run dev` starts cleanly and logs a successful MongoDB Atlas connection"* was **not verified against Atlas**. The equivalent Express/Mongoose/runtime/database path was successfully verified against the isolated `mongodb-memory-server` environment, including server boot and `GET /api/health` returning a connected database state. Phase 1 remains accepted as complete with this documented environment limitation. **Real Atlas connectivity remains a Phase 12 deployment/environment verification item**, to be confirmed on a network that permits `SRV`/`TXT` resolution, where the deployed `/api/health` must report a healthy Atlas connection.
+- **MongoDB Atlas remains the intended database for the project** — target architecture unchanged.
+- **This does not change the Phase 2 implementation scope.** Phase 2 is schema/model design and its tests run against the same isolated in-memory database, so Phase 2 remains unblocked by the Atlas gap.
 
 ---
 
@@ -408,7 +426,7 @@ Provide the admin management surface the existing admin UI already expects, prot
 - Inventory: `GET /api/admin/inventory` and `PATCH /api/admin/inventory/:productId/variants/:variantId`.
 - User management, order management (status transitions), review moderation, and promotions endpoints as the admin services expect.
 - `authoriseRole('admin')` on every admin route; admin mutations audit-logged without logging secrets or personal data beyond what is necessary.
-- Single-source-of-truth guarantee: admin catalogue writes and storefront catalogue reads hit the same collections, so an admin change is visible on the storefront (mirroring the shared-mock rule in `agents.md`).
+- Single-source-of-truth guarantee: admin catalogue writes and storefront catalogue reads hit the same collections, so an admin change is visible on the storefront (mirroring the shared-mock rule in `AGENTS.md`).
 
 **Test deliverables (this phase's functionality)**
 - Integration tests for every endpoint named in `adminService.ts`, run with an admin token.
@@ -539,7 +557,7 @@ Phase 1 (foundation and test harness), Phase 3 (product/variant resolution for e
 - Requests without consent, with an oversized file, or with a non-image file are rejected with correct status codes.
 - Temporary uploads are provably removed after processing; retention behaviour matches the documented policy.
 - The provider can be swapped by changing configuration alone — demonstrated by a second implementation of the interface.
-- The existing product-page try-on flow still carries the exact selected product and colour, per `agents.md`.
+- The existing product-page try-on flow still carries the exact selected product and colour, per `AGENTS.md`.
 - `isDemo` accurately reflects whether a real provider was used.
 - **VTO route, provider-swap, upload-rejection, consent, and cleanup tests added and passing; the whole suite still green.**
 
@@ -631,7 +649,7 @@ Integrate the client-supplied Python ML size-recommendation service through Expr
 **Main deliverables**
 - A separate Python service (e.g. FastAPI/Flask) hosting the client-supplied model, deployed independently of Express.
 - Express proxy endpoints at the paths the frontend already calls: `GET /api/size-recommendation/schema/:productId` and `POST /api/size-recommendation`.
-- **Model-determined form schema:** the backend/model decides which measurement fields are required, returned as `SizeRecommendationFormSchema` (`fields` with `key`, `label`, `inputType`, `required`, `min`/`max`, `unit`, `helpText`, `displayOrder`, `options`). No permanent hard-coded input set — the frontend stays model-agnostic per `agents.md`.
+- **Model-determined form schema:** the backend/model decides which measurement fields are required, returned as `SizeRecommendationFormSchema` (`fields` with `key`, `label`, `inputType`, `required`, `min`/`max`, `unit`, `helpText`, `displayOrder`, `options`). No permanent hard-coded input set — the frontend stays model-agnostic per `AGENTS.md`.
 - Per-product model selection via `sizeModelKey`, and `sizeRecommendationEligible` respected.
 - Result mapping to `SizeRecommendationResult`: `recommendedSize`, `confidencePercent`, `confidenceLabel`, `expectedFit`, `explanation`, optional `alternativeSize`, `productNote`, `measurementSummary`, and a `disclaimer`.
 - Metric/imperial unit handling and validated measurement input, collecting **only** the fields the active schema declares.
@@ -662,7 +680,7 @@ Phase 12 (deployable, hardened, already-deployed backend) **and** delivery of th
 - No ML credential or internal service URL is exposed to the browser.
 - With the ML service deliberately stopped, the product page still renders and Add to Bag still works.
 - Copy reviewed: guidance-not-guarantee, no body-shaming language.
-- Size Recommendation appears beside the size selector, preserving the product-page hierarchy in `agents.md`.
+- Size Recommendation appears beside the size selector, preserving the product-page hierarchy in `AGENTS.md`.
 - **Size-recommendation tests added and passing, and the full Phase 11 suite re-run green against the updated backend.**
 - The two-service deployment and rollback procedure is documented and has been followed at least once.
 
@@ -700,6 +718,8 @@ Phase 13, and therefore all preceding phases.
 
 ## Working rules that apply to every phase
 
+These are a summary for convenience. **[AGENTS.md](../AGENTS.md) is authoritative** — if the two ever disagree, AGENTS.md wins.
+
 1. **One phase, one scoped task at a time.** Finish, report, stop.
 2. **Inspect before editing.** Read the existing backend code and the relevant frontend service and types first.
 3. **`backend/` is the write scope.** `frontend/` is read-only until Phase 8, and even then only service modules and environment configuration. The root `package.json` is off limits except in Phase 1 (backend-delegating `npm --prefix` scripts), and only on the owner's explicit request. **Never add a `workspaces` field and never create a root `package-lock.json`.**
@@ -708,4 +728,4 @@ Phase 13, and therefore all preceding phases.
 6. **Verify after changing.** Run the relevant build, type-check, and tests. Report the real outcome, including failures.
 7. **Report changed files and limitations** at the end of every task.
 8. **Never expose or commit secrets**, and never read or print `.env` contents.
-9. **Never commit, push, merge, or switch branches** unless the project owner explicitly instructs it in that task.
+9. **Branch per phase; never work on `backend-development` or `main` directly.** Within an authorised task an agent may commit, push its scoped branch, and open or update a pull request targeting `backend-development` — then stop for review. **Merging requires explicit owner authorisation**, and no force-push, reset, rebase, history rewrite or branch deletion is permitted without it. See the Git workflow in [AGENTS.md](../AGENTS.md).
