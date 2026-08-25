@@ -36,6 +36,12 @@ The `overrides` entry pinning `vite` to `^6` exists for the same reason: Vitest 
 resolves a transitive dependency that Node 18 cannot run. Vite is not used by the backend
 itself — only by Vitest.
 
+`@types/node` is held to **18.x** so the type definitions describe the *minimum* supported
+runtime rather than the newest one. On a later major, `tsc` would accept APIs that do not
+exist in Node 18 (`process.loadEnvFile`, for example) and the build would pass while the
+deployed runtime threw. Keep this line in step with `engines.node`, not with the Node
+version that happens to be installed locally.
+
 Before raising any of these, check the target's real requirement rather than assuming:
 
 ```bash
