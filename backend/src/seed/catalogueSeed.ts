@@ -1,4 +1,6 @@
-import mongoose, { Types } from 'mongoose';
+import { Types } from 'mongoose';
+import { connectDatabase, disconnectDatabase } from '../config/database';
+import { env } from '../config/env';
 import { Category, Collection, Product } from '../models';
 import { catalogueProducts } from './data/catalogue';
 import { catalogueCategories, catalogueCollections } from './data/taxonomy';
@@ -26,11 +28,12 @@ export async function seedCatalogue(): Promise<typeof CATALOGUE_COUNTS> {
 }
 
 async function main(): Promise<void> {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error('MONGODB_URI is required to seed the catalogue');
-  await mongoose.connect(uri);
+  await connectDatabase(env.MONGODB_URI);
   try { const counts = await seedCatalogue(); process.stdout.write(`Seeded ${counts.products} products, ${counts.categories} categories, and ${counts.collections} collections.\n`); }
-  finally { await mongoose.disconnect(); }
+  finally { await disconnectDatabase(); }
 }
 
-if (require.main === module) main().catch((error: unknown) => { process.stderr.write(`Catalogue seed failed: ${error instanceof Error ? error.message : 'unknown error'}\n`); process.exitCode = 1; });
+if (require.main === module) main().catch(() => {
+  process.stderr.write('Catalogue seed failed. Check the backend configuration and database availability.\n');
+  process.exitCode = 1;
+});

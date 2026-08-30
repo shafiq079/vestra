@@ -95,6 +95,21 @@ describe('Phase 2 models', () => {
     expect(json).not.toHaveProperty('measurementProfile');
   });
 
+  it('never serialises the persisted password hash', () => {
+    const user = new User(userFixture());
+    const json = user.toJSON() as Record<string, unknown>;
+
+    expect(json).not.toHaveProperty('passwordHash');
+    expect(json).not.toHaveProperty('_id');
+    expect(json).not.toHaveProperty('__v');
+    expect(json).toMatchObject({
+      email: 'customer@example.com',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      role: 'customer',
+    });
+  });
+
   it('serialises top-level, embedded, reference, array, and date values', () => {
     const productId = new mongoose.Types.ObjectId();
     const relatedId = new mongoose.Types.ObjectId();

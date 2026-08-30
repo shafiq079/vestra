@@ -38,7 +38,7 @@ const userSchema = new Schema(
 );
 
 userSchema.index({ email: 1 }, { unique: true });
-frontendJson(userSchema);
+frontendJson(userSchema, { omit: ['passwordHash'] });
 
 export type UserShape = InferSchemaType<typeof userSchema>;
 export const User: Model<UserShape> =
