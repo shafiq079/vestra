@@ -1,0 +1,9 @@
+export const USER_ROLES = ['customer', 'admin'] as const;
+export const STOCK_STATUSES = ['in_stock', 'low_stock', 'out_of_stock'] as const;
+export const GENDER_COLLECTIONS = ['women', 'men', 'unisex'] as const;
+export const PRODUCT_BADGES = ['new', 'sale', 'low_stock', 'bestseller', 'exclusive'] as const;
+export const FIT_FEEDBACK = ['runs_small', 'true_to_size', 'runs_large'] as const;
+export const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'dispatched', 'delivered', 'cancelled', 'returned'] as const;
+export const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'] as const;
+export const PREFERRED_FITS = ['fitted', 'regular', 'relaxed'] as const;
+export const UNIT_SYSTEMS = ['metric', 'imperial'] as const;

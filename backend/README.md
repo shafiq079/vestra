@@ -10,8 +10,8 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phase 1 (this foundation) is implemented.** No domain models or business endpoints
-exist yet — Phase 2 covers schema design.
+**Phase 1 is complete. Phase 2 schema implementation is currently under review.**
+Business endpoints begin in Phase 3.
 
 ## Stack
 
@@ -72,6 +72,7 @@ Run from `backend/`:
 | `npm test` | Run the test suite once (`vitest run`) |
 | `npm run test:watch` | Run the test suite in watch mode |
 | `npm run typecheck` | Type-check `src/` **and** `tests/` without emitting |
+| `npm run seed` | Replace the catalogue collections with the backend-owned 24-product demonstration seed (requires `MONGODB_URI`) |
 
 Equivalent convenience wrappers exist at the repository root and delegate with
 `npm --prefix backend`: `dev:backend`, `build:backend`, `start:backend`, `test:backend`.
@@ -124,6 +125,11 @@ Directories reserved for later phases (`controllers/`, `models/`, `services/`,
 `validators/`, `uploads/`) are present but empty.
 
 ## API
+
+The persistence/DTO decisions are documented in [SCHEMA_MAPPING.md](SCHEMA_MAPPING.md).
+The catalogue seed replaces only products, categories, and collections and can be
+run repeatedly with deterministic counts. Do not run it against a database whose
+catalogue should be retained.
 
 ### `GET /api/health`
 
