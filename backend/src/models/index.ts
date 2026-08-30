@@ -1,5 +1,6 @@
 export * from './enums';
 export * from './User';
+export * from './MeasurementProfile';
 export * from './Product';
 export * from './Catalogue';
 export * from './Review';

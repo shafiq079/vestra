@@ -10,8 +10,8 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phases 1 and 2 are implemented.** The database domain models and backend-owned
-catalogue seed exist; business endpoints begin in Phase 3.
+**Phase 1 is complete. Phase 2 schema implementation is currently under review.**
+Business endpoints begin in Phase 3.
 
 ## Stack
 

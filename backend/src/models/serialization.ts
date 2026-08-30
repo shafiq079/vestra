@@ -1,7 +1,8 @@
-import type { Schema } from 'mongoose';
+import { Types, type Schema } from 'mongoose';
 
 function normalise(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
+  if (value instanceof Types.ObjectId) return value.toString();
   if (Array.isArray(value)) return value.map(normalise);
   if (value && typeof value === 'object') {
     const source = value as Record<string, unknown>;

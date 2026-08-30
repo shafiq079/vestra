@@ -1,17 +1,153 @@
 import mongoose from 'mongoose';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { Cart, Category, Collection, DeliveryOption, Order, Product, Review, User, WishlistItem } from '../src/models';
-import { cartFixture, categoryFixture, collectionFixture, deliveryOptionFixture, orderFixture, productFixture, reviewFixture, userFixture, wishlistItemFixture } from './fixtures/models';
-beforeAll(async () => { await Promise.all([User, Product, Category, Collection, Review, Cart, WishlistItem, Order, DeliveryOption].map((m) => m.syncIndexes())); });
+import {
+  Cart, Category, Collection, DeliveryOption, MeasurementProfile, Order,
+  Product, Review, User, WishlistItem,
+} from '../src/models';
+import {
+  cartFixture, categoryFixture, collectionFixture, deliveryOptionFixture,
+  measurementProfileFixture, orderFixture, productFixture, reviewFixture,
+  userFixture, wishlistItemFixture,
+} from './fixtures/models';
+
+beforeAll(async () => {
+  await Promise.all([
+    User, MeasurementProfile, Product, Category, Collection, Review,
+    Cart, WishlistItem, Order, DeliveryOption,
+  ].map((registeredModel) => registeredModel.syncIndexes()));
+});
+
 describe('Phase 2 models', () => {
- it('registers every model once', async () => { expect(Object.keys(mongoose.models).sort()).toEqual(['Cart','Category','Collection','DeliveryOption','Order','Product','Review','User','WishlistItem'].sort()); await expect(import('../src/models/index.js')).resolves.toBeDefined(); });
- it('enforces required fields and enums', async () => { await expect(new User({}).validate()).rejects.toThrow(); await expect(new Product(productFixture({ genderCollection: 'kids' })).validate()).rejects.toThrow(); await expect(new Review(reviewFixture({ fitFeedback: 'perfect' })).validate()).rejects.toThrow(); await expect(new Order(orderFixture({ status: 'shipped', paymentStatus: 'authorised' })).validate()).rejects.toThrow(); });
- it('applies defaults', () => { const u = new User(userFixture()); const p = new Product(productFixture()); expect([u.role,u.isActive,p.isPublished,p.rating]).toEqual(['customer',true,false,0]); });
- it('rejects invalid numbers and sale prices', async () => { await expect(new Product(productFixture({ price: -1 })).validate()).rejects.toThrow(); await expect(new Product(productFixture({ salePrice: 101 })).validate()).rejects.toThrow(); await expect(new Product(productFixture({ variants: [{ sku:'NEG',colour:'Black',colourHex:'#000',size:'M',stock:-1 }] })).validate()).rejects.toThrow(); await expect(new Review(reviewFixture({ rating: 6 })).validate()).rejects.toThrow(); await expect(new Cart(cartFixture({ items: [{ productId:new mongoose.Types.ObjectId(),variantId:new mongoose.Types.ObjectId(),colour:'Black',size:'M',quantity:0,price:10 }] })).validate()).rejects.toThrow(); });
- it.each([['email',User,()=>userFixture({email:'DUP@example.com'}),()=>userFixture({email:'dup@example.com'})],['product slug',Product,()=>productFixture({slug:'duplicate-product'}),()=>productFixture({slug:'duplicate-product'})],['category slug',Category,()=>categoryFixture({slug:'duplicate-category'}),()=>categoryFixture({slug:'duplicate-category'})],['collection slug',Collection,()=>collectionFixture({slug:'duplicate-collection'}),()=>collectionFixture({slug:'duplicate-collection'})]])('rejects duplicate %s', async (_n,Model,first,second) => { await Model.create(first()); await expect(Model.create(second())).rejects.toMatchObject({code:11000}); });
- it('enforces wishlist uniqueness', async () => { const x=wishlistItemFixture(); await WishlistItem.create(x); await expect(WishlistItem.create(x)).rejects.toMatchObject({code:11000}); });
- it('serialises ids, embedded ids and dates', async () => { const u=await User.create(userFixture({addresses:[{label:'Home',firstName:'Ada',lastName:'Lovelace',line1:'1 Road',city:'London',postcode:'sw1a 1aa',country:'UK'}]})); const j=u.toJSON() as Record<string, any>; expect(typeof j.id).toBe('string'); expect(j._id).toBeUndefined(); expect(j.__v).toBeUndefined(); expect(typeof j.createdAt).toBe('string'); expect(typeof j.addresses[0].id).toBe('string'); });
- it('uses references and order snapshots', () => { const c=new Cart(cartFixture()), w=new WishlistItem(wishlistItemFixture()), o=new Order(orderFixture()); expect(c.items[0]?.productId).toBeInstanceOf(mongoose.Types.ObjectId); expect(w.productId).toBeInstanceOf(mongoose.Types.ObjectId); expect(o.items[0]?.productName).toBe('Wool Coat'); });
- it('validates exclusive owner identities', async () => { await expect(new Cart(cartFixture({userId:undefined,guestId:undefined})).validate()).rejects.toThrow(); await expect(new Order(orderFixture({guestEmail:'guest@example.com'})).validate()).rejects.toThrow(); });
- it('provides valid core factories', async () => { await expect(new Category(categoryFixture()).validate()).resolves.toBeUndefined(); await expect(new Collection(collectionFixture()).validate()).resolves.toBeUndefined(); await expect(new DeliveryOption(deliveryOptionFixture()).validate()).resolves.toBeUndefined(); });
+  it('registers every model once', async () => {
+    expect(Object.keys(mongoose.models).sort()).toEqual([
+      'Cart', 'Category', 'Collection', 'DeliveryOption', 'MeasurementProfile',
+      'Order', 'Product', 'Review', 'User', 'WishlistItem',
+    ].sort());
+    await expect(import('../src/models/index.js')).resolves.toBeDefined();
+  });
+
+  it('enforces required fields and enums', async () => {
+    await expect(new User({}).validate()).rejects.toThrow();
+    await expect(new Product(productFixture({ genderCollection: 'kids' })).validate()).rejects.toThrow();
+    await expect(new Review(reviewFixture({ fitFeedback: 'perfect' })).validate()).rejects.toThrow();
+    await expect(new Order(orderFixture({ status: 'shipped' })).validate()).rejects.toThrow();
+  });
+
+  it('validates MeasurementProfile enums and non-negative measurements', async () => {
+    await expect(new MeasurementProfile(measurementProfileFixture()).validate()).resolves.toBeUndefined();
+    await expect(new MeasurementProfile(measurementProfileFixture({ preferredFit: 'oversized' })).validate()).rejects.toThrow();
+    await expect(new MeasurementProfile(measurementProfileFixture({ unitSystem: 'unknown' })).validate()).rejects.toThrow();
+    await expect(new MeasurementProfile(measurementProfileFixture({ waist: -1 })).validate()).rejects.toThrow();
+  });
+
+  it('applies defaults', () => {
+    const user = new User(userFixture());
+    const product = new Product(productFixture());
+    expect([user.role, user.isActive, product.isPublished, product.rating]).toEqual([
+      'customer', true, false, 0,
+    ]);
+  });
+
+  it('rejects invalid numbers and sale prices', async () => {
+    await expect(new Product(productFixture({ price: -1 })).validate()).rejects.toThrow();
+    await expect(new Product(productFixture({ salePrice: 101 })).validate()).rejects.toThrow();
+    await expect(new Product(productFixture({
+      variants: [{ sku: 'NEG', colour: 'Black', colourHex: '#000', size: 'M', stock: -1 }],
+    })).validate()).rejects.toThrow();
+    await expect(new Review(reviewFixture({ rating: 6 })).validate()).rejects.toThrow();
+    await expect(new Cart(cartFixture({
+      items: [{ productId: new mongoose.Types.ObjectId(), variantId: new mongoose.Types.ObjectId(),
+        colour: 'Black', size: 'M', quantity: 0, price: 10 }],
+    })).validate()).rejects.toThrow();
+  });
+
+  it('rejects duplicate normalized user emails', async () => {
+    await User.create(userFixture({ email: 'DUP@example.com' }));
+    await expect(User.create(userFixture({ email: 'dup@example.com' }))).rejects.toMatchObject({ code: 11000 });
+  });
+  it('rejects duplicate product slugs', async () => {
+    await Product.create(productFixture({ slug: 'duplicate-product' }));
+    await expect(Product.create(productFixture({ slug: 'duplicate-product' }))).rejects.toMatchObject({ code: 11000 });
+  });
+  it('rejects duplicate category slugs', async () => {
+    await Category.create(categoryFixture({ slug: 'duplicate-category' }));
+    await expect(Category.create(categoryFixture({ slug: 'duplicate-category' }))).rejects.toMatchObject({ code: 11000 });
+  });
+  it('rejects duplicate collection slugs', async () => {
+    await Collection.create(collectionFixture({ slug: 'duplicate-collection' }));
+    await expect(Collection.create(collectionFixture({ slug: 'duplicate-collection' }))).rejects.toMatchObject({ code: 11000 });
+  });
+  it('allows only one MeasurementProfile per user', async () => {
+    const userId = new mongoose.Types.ObjectId();
+    await MeasurementProfile.create(measurementProfileFixture({ userId }));
+    await expect(MeasurementProfile.create(measurementProfileFixture({ userId }))).rejects.toMatchObject({ code: 11000 });
+  });
+  it('keeps WishlistItem unique by user and product', async () => {
+    const item = wishlistItemFixture();
+    await WishlistItem.create(item);
+    await expect(WishlistItem.create(item)).rejects.toMatchObject({ code: 11000 });
+  });
+
+  it('does not persist derived User wishlistIds or measurementProfile fields', () => {
+    const user = new User({ ...userFixture(), wishlistIds: [new mongoose.Types.ObjectId()], measurementProfile: {} });
+    const json = user.toJSON() as Record<string, unknown>;
+    expect(json).not.toHaveProperty('wishlistIds');
+    expect(json).not.toHaveProperty('measurementProfile');
+  });
+
+  it('serialises top-level, embedded, reference, array, and date values', () => {
+    const productId = new mongoose.Types.ObjectId();
+    const relatedId = new mongoose.Types.ObjectId();
+    const variantId = new mongoose.Types.ObjectId();
+    const deliveryOptionId = new mongoose.Types.ObjectId();
+    const userId = new mongoose.Types.ObjectId();
+    const product = new Product(productFixture({
+      relatedProductIds: [relatedId],
+      images: [{ url: '/coat.jpg', alt: 'Coat', position: 0, isLifestyle: false }],
+      variants: [{ _id: variantId, sku: 'SERIAL', colour: 'Black', colourHex: '#000', size: 'M', stock: 1 }],
+    })).toJSON() as Record<string, any>;
+    const category = new Category(categoryFixture({ parentId: productId })).toJSON() as Record<string, any>;
+    const profile = new MeasurementProfile(measurementProfileFixture({ userId })).toJSON() as Record<string, any>;
+    const review = new Review(reviewFixture({ productId, userId })).toJSON() as Record<string, any>;
+    const cart = new Cart(cartFixture({ userId, deliveryOptionId, items: [{
+      productId, variantId, colour: 'Black', size: 'M', quantity: 1, price: 100,
+    }] })).toJSON() as Record<string, any>;
+    const wishlist = new WishlistItem(wishlistItemFixture({ userId, productId })).toJSON() as Record<string, any>;
+    const order = new Order(orderFixture({ userId, items: [{
+      productId, productName: 'Coat', productImage: '/coat.jpg', brand: 'VESTRA',
+      colour: 'Black', size: 'M', quantity: 1, price: 100,
+    }] })).toJSON() as Record<string, any>;
+    const user = new User(userFixture({ addresses: [{ label: 'Home', firstName: 'Ada',
+      lastName: 'Lovelace', line1: '1 Road', city: 'London', postcode: 'SW1A 1AA', country: 'UK' }] })).toJSON() as Record<string, any>;
+
+    expect(typeof user.id).toBe('string');
+    expect(typeof user.addresses[0].id).toBe('string');
+    expect(typeof product.images[0].id).toBe('string');
+    expect(typeof product.variants[0].id).toBe('string');
+    expect(product.relatedProductIds).toEqual([relatedId.toString()]);
+    expect(category.parentId).toBe(productId.toString());
+    expect(profile.userId).toBe(userId.toString());
+    expect([review.productId, review.userId]).toEqual([productId.toString(), userId.toString()]);
+    expect([cart.userId, cart.items[0].productId, cart.items[0].variantId, cart.deliveryOptionId])
+      .toEqual([userId.toString(), productId.toString(), variantId.toString(), deliveryOptionId.toString()]);
+    expect([wishlist.userId, wishlist.productId]).toEqual([userId.toString(), productId.toString()]);
+    expect([order.userId, order.items[0].productId]).toEqual([userId.toString(), productId.toString()]);
+    expect(typeof order.items[0].id).toBe('string');
+    expect(typeof profile.lastUpdated).toBe('string');
+    for (const json of [user, product, category, profile, review, cart, wishlist, order]) {
+      expect(json).not.toHaveProperty('_id');
+      expect(json).not.toHaveProperty('__v');
+    }
+  });
+
+  it('validates exclusive owner identities', async () => {
+    await expect(new Cart(cartFixture({ userId: undefined, guestId: undefined })).validate()).rejects.toThrow();
+    await expect(new Order(orderFixture({ guestEmail: 'guest@example.com' })).validate()).rejects.toThrow();
+  });
+
+  it('provides valid core factories', async () => {
+    await expect(new Category(categoryFixture()).validate()).resolves.toBeUndefined();
+    await expect(new Collection(collectionFixture()).validate()).resolves.toBeUndefined();
+    await expect(new DeliveryOption(deliveryOptionFixture()).validate()).resolves.toBeUndefined();
+  });
 });
