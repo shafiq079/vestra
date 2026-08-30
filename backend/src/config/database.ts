@@ -6,7 +6,7 @@
  * state are logged, and every message is additionally passed through the
  * logger's redaction pass as a second line of defence.
  *
- * No models are registered in this phase — Phase 2 owns schema design.
+ * Phase 2 models register when imported by domain services or seed tooling.
  */
 
 import mongoose from 'mongoose';

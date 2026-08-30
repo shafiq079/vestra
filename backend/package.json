@@ -13,7 +13,8 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "seed": "tsx src/seed/catalogueSeed.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
