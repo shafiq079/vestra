@@ -23,10 +23,10 @@ async function currentItems(cart: InstanceType<typeof Cart>) {
 
 async function recalculate(cart: InstanceType<typeof Cart>) {
   const resolved = await currentItems(cart);
-  const totals = calculateCartTotals(resolved.map(({ item }) => item), cart.promoCode);
+  const totals = calculateCartTotals(resolved.map(({ item }) => item), cart.promoCode ?? undefined);
   cart.subtotal = totals.subtotal;
   const { promo } = totals;
-  if (cart.promoCode && !promo.valid) cart.promoCode = undefined;
+  if (cart.promoCode && !promo.valid) cart.promoCode = null;
   cart.discount = totals.discount;
   cart.estimatedTotal = totals.estimatedTotal;
   await cart.save();
@@ -81,7 +81,7 @@ export async function removeItem(owner: CartOwner, itemId: string) {
 }
 export async function clearCart(owner: CartOwner) {
   const cart = await Cart.findOne(ownerFilter(owner)); if (!cart) return emptyDto();
-  cart.items.splice(0); cart.promoCode = undefined; return dto(cart);
+  cart.items.splice(0); cart.promoCode = null; return dto(cart);
 }
 export async function applyPromo(owner: CartOwner, code: string): Promise<PromoResult> {
   const cart = await ownedCart(owner); await recalculate(cart); const result = evaluatePromo(code, cart.subtotal);
@@ -89,7 +89,7 @@ export async function applyPromo(owner: CartOwner, code: string): Promise<PromoR
   return result;
 }
 export async function removePromo(owner: CartOwner) {
-  const cart = await Cart.findOne(ownerFilter(owner)); if (!cart) return emptyDto(); cart.promoCode = undefined; return dto(cart);
+  const cart = await Cart.findOne(ownerFilter(owner)); if (!cart) return emptyDto(); cart.promoCode = null; return dto(cart);
 }
 export async function mergeCart(userId: string, guestId: string) {
   const guest = await Cart.findOne({ guestId }); if (!guest) return getCart({ userId });

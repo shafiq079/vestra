@@ -51,7 +51,7 @@ describe('Phase 5 cart', () => {
     const added = await request(app).post('/api/cart/items').set(guest()).send(addBody(product)); const id = added.body.items[0].id;
     expect((await request(app).patch(`/api/cart/items/${id}`).set(guest()).send({ quantity: 2 })).body.items[0].quantity).toBe(2);
     expect((await request(app).patch(`/api/cart/items/${id}`).set(guest()).send({ quantity: 3 })).status).toBe(409);
-    expect((await request(app).delete(`/api/cart/items/${id}`).set(guestB)).status).toBe(404);
+    expect((await request(app).delete(`/api/cart/items/${id}`).set(guest(guestB))).status).toBe(404);
     expect((await request(app).delete(`/api/cart/items/${id}`).set(guest())).body.items).toEqual([]);
     expect((await request(app).delete('/api/cart').set(guest())).body).toEqual({ items: [], subtotal: 0, discount: 0, estimatedTotal: 0 });
   });
