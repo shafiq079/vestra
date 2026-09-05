@@ -10,8 +10,21 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phase 1 is complete. Phase 2 schema implementation is currently under review.**
-Business endpoints begin in Phase 3.
+**Phase 2 is complete. The Phase 3 catalogue API is currently under development/review.**
+
+## Public catalogue API
+
+Phase 3 exposes read-only product, category, and collection routes beneath `/api`. For
+compatibility with the existing frontend service, `GET /products` has two response modes:
+supplying either `page` or `pageSize` returns `PaginatedResult<Product>`, while omitting both
+returns the complete matching `Product[]`. Phase 8 may standardise this deliberate compatibility
+behaviour when the real API is wired into the frontend.
+
+Product filters use `salePrice ?? price` as the effective storefront price. Availability is
+derived from actual variant stock rather than the denormalised stock label. Because Phase 2 has
+no structured product `fit` field, the `fit` compatibility filter performs escaped,
+case-insensitive matching against `fitDescription`; it does not add or infer a new persistence
+field.
 
 ## Stack
 
