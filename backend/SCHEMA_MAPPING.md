@@ -14,7 +14,15 @@ All document schemas use the shared JSON transform: MongoDB `_id` becomes a stri
 | `WishlistItem` | `WishlistItem` | The single persisted wishlist source of truth: one unique user/product reference pair. DTO `product` is populated later, and `User.wishlistIds` is derived from these records. |
 | `Order` / `OrderItem` | `Order` / `OrderItem` | Items, address, and delivery option are historical snapshots so later catalogue changes cannot alter an order. User is referenced; a guest instead supplies email. Totals/statuses/timestamps persist directly. |
 | `DeliveryOption` | `DeliveryOption` | Active master delivery choices. `isActive` and `displayOrder` are persistence-only; orders embed a snapshot. |
+| `AuthSession` | None (persistence-only) | Stores only a SHA-256 refresh-token hash, user reference, expiry and revocation time. Raw refresh tokens and session fields never enter a User DTO. An expiry TTL index removes old sessions. |
 
 ## Relationships and intentionally derived fields
 
 Product `category`, optional `subcategory`, and optional `collection` match taxonomy slugs rather than ObjectIds. This makes the existing catalogue query contract direct while Category parentage remains referential. Cart/Wishlist product objects, Cart delivery option objects, User measurement profile, and User wishlist IDs are assembled in later service phases. Product aggregates (`rating`, `reviewCount`, `stockStatus`, colours, and available sizes) are denormalised read-optimised fields maintained by later catalogue/review services. Recommendation DTOs, VTO DTOs, size-form/results, dashboard metrics, and pagination/error wrappers are Phase 3+ service outputs, not Phase 2 documents.
+
+## Phase 4 User response assembly
+
+The User DTO service starts with shared `frontendJson` output (which omits `passwordHash`),
+loads `MeasurementProfile`, and derives `wishlistIds` from `WishlistItem.productId`. Tokens are
+top-level additions only to register/login responses; session data never becomes a User field.
+Address lists return `Address[]`; address mutations return the full updated User DTO.

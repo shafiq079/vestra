@@ -24,7 +24,9 @@ dotenv.config({ quiet: true });
  * Variables whose value must never appear in an error message or log line.
  * Validation failures for these are reported by NAME ONLY.
  */
-const SENSITIVE_KEYS = new Set(['MONGODB_URI']);
+export const SENSITIVE_KEYS = new Set([
+  'MONGODB_URI', 'JWT_SECRET', 'DEMO_CUSTOMER_PASSWORD', 'DEMO_ADMIN_PASSWORD',
+]);
 
 const MONGODB_URI_SCHEMES = ['mongodb://', 'mongodb+srv://'] as const;
 
@@ -44,6 +46,12 @@ const envSchema = z.object({
 
   // Comma-separated list of permitted browser origins.
   CORS_ORIGIN: z.string().trim().min(1).default('http://localhost:5173'),
+  JWT_SECRET: z.string().min(32),
+  JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(12),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
+  DEMO_CUSTOMER_PASSWORD: z.string().min(8).max(128).optional(),
+  DEMO_ADMIN_PASSWORD: z.string().min(8).max(128).optional(),
 });
 
 export type NodeEnvironment = z.infer<typeof envSchema>['NODE_ENV'];
@@ -54,6 +62,12 @@ export interface AppEnvironment {
   readonly MONGODB_URI: string;
   /** Raw CORS_ORIGIN value, as supplied. */
   readonly CORS_ORIGIN: string;
+  readonly JWT_SECRET: string;
+  readonly JWT_ACCESS_TTL_SECONDS: number;
+  readonly BCRYPT_ROUNDS: number;
+  readonly REFRESH_TOKEN_TTL_DAYS: number;
+  readonly DEMO_CUSTOMER_PASSWORD?: string;
+  readonly DEMO_ADMIN_PASSWORD?: string;
   /** CORS_ORIGIN split into individual origins. */
   readonly corsOrigins: readonly string[];
   readonly isProduction: boolean;
@@ -84,7 +98,7 @@ function loadEnvironment(): AppEnvironment {
     throw new Error(formatIssues(parsed.error));
   }
 
-  const { NODE_ENV, PORT, MONGODB_URI, CORS_ORIGIN } = parsed.data;
+  const { NODE_ENV, PORT, MONGODB_URI, CORS_ORIGIN, ...auth } = parsed.data;
 
   const corsOrigins = CORS_ORIGIN.split(',')
     .map((origin) => origin.trim())
@@ -109,6 +123,12 @@ function loadEnvironment(): AppEnvironment {
     PORT,
     MONGODB_URI,
     CORS_ORIGIN,
+    JWT_SECRET: auth.JWT_SECRET,
+    JWT_ACCESS_TTL_SECONDS: auth.JWT_ACCESS_TTL_SECONDS,
+    BCRYPT_ROUNDS: auth.BCRYPT_ROUNDS,
+    REFRESH_TOKEN_TTL_DAYS: auth.REFRESH_TOKEN_TTL_DAYS,
+    ...(auth.DEMO_CUSTOMER_PASSWORD ? { DEMO_CUSTOMER_PASSWORD: auth.DEMO_CUSTOMER_PASSWORD } : {}),
+    ...(auth.DEMO_ADMIN_PASSWORD ? { DEMO_ADMIN_PASSWORD: auth.DEMO_ADMIN_PASSWORD } : {}),
     corsOrigins: Object.freeze(corsOrigins),
     isProduction: NODE_ENV === 'production',
     isTest: NODE_ENV === 'test',
