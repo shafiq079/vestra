@@ -36,12 +36,15 @@ describe('test database isolation', () => {
     expect(uri).toContain('127.0.0.1');
   });
 
-  it('starts from an empty database', async () => {
+  it('starts with clean data even when model indexes have created collections', async () => {
     const database = mongoose.connection.db;
     expect(database).toBeDefined();
 
-    const collections = await database!.listCollections().toArray();
-    expect(collections).toHaveLength(0);
+    const collections = await database!.listCollections({}, { nameOnly: true }).toArray();
+    const documentCounts = await Promise.all(
+      collections.map(({ name }) => database!.collection(name).countDocuments()),
+    );
+    expect(documentCounts.every((count) => count === 0)).toBe(true);
   });
 
   it('registers no models yet — schema design is Phase 2', () => {
