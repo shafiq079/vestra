@@ -34,6 +34,15 @@ export class HttpError extends Error {
   static notFound(message: string, details?: ErrorDetails): HttpError {
     return new HttpError(404, 'NOT_FOUND', message, details);
   }
+  static unauthorized(message = 'Authentication is required.'): HttpError {
+    return new HttpError(401, 'UNAUTHORIZED', message);
+  }
+  static forbidden(message = 'You do not have permission to perform this action.'): HttpError {
+    return new HttpError(403, 'FORBIDDEN', message);
+  }
+  static conflict(message: string): HttpError {
+    return new HttpError(409, 'CONFLICT', message);
+  }
 }
 
 export function isHttpError(value: unknown): value is HttpError {

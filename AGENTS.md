@@ -32,10 +32,10 @@ artefact**. Its differentiating features are:
   work in progress. It is **read-only** during backend development (see *Scope of changes*).
 - **Backend development is authorised and is the active work.** `backend/` is the primary
   write scope.
-- **Phase 0A, 0B, Phase 1 and Phase 2 are complete and merged.** Phase 1 delivered the
+- **Phase 0A, 0B, Phase 1, Phase 2 and Phase 3 are complete and merged.** Phase 1 delivered the
   Express / TypeScript foundation, MongoDB connection handling, `GET /api/health`, the error
   contract, and the test harness; Phase 2 delivered the database/schema design.
-- **Phase 3 (product catalogue, categories and collections API) is the current backend phase.**
+- **Phase 4 (authentication, users, profiles and addresses) is the current backend phase.**
 - **`backend-development` is the integration branch.** All phase work branches from it and
   targets it by pull request.
 

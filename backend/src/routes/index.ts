@@ -14,6 +14,8 @@ import { healthRouter } from './health';
 import { productsRouter } from './products';
 import { categoriesRouter } from './categories';
 import { collectionsRouter } from './collections';
+import { authRouter } from './auth';
+import { profileRouter } from './profile';
 
 export interface ApiRouterOptions {
   /** Mounts the test-only diagnostics routes. Never enable in a deployment. */
@@ -27,6 +29,8 @@ export function createApiRouter({ enableDiagnostics }: ApiRouterOptions): Router
   router.use('/products', productsRouter);
   router.use('/categories', categoriesRouter);
   router.use('/collections', collectionsRouter);
+  router.use('/auth', authRouter);
+  router.use('/profile', profileRouter);
 
   if (enableDiagnostics) {
     router.use('/__diagnostics', diagnosticsRouter);

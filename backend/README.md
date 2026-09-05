@@ -10,7 +10,26 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phase 2 is complete. The Phase 3 catalogue API is currently under development/review.**
+**Phase 3 is complete. The Phase 4 authentication/account API is under development/review.**
+
+### Phase 4 authentication and account API
+
+Authentication routes are `POST /api/auth/register`, `POST /api/auth/login`,
+`GET /api/auth/me`, compatibility `GET /api/auth/me/:userId`, `POST /api/auth/refresh`,
+`POST /api/auth/logout`, and `POST /api/auth/forgot-password`. Protected account routes are
+`GET|PATCH /api/profile`, address list/create/update/delete/default routes beneath
+`/api/profile/addresses`, and `GET|PATCH /api/profile/measurement-profile`.
+
+Access tokens are short-lived HS256 JWTs containing only subject and role. Opaque random refresh
+tokens are rotated on use; MongoDB stores only their SHA-256 hashes. Passwords are hashed with
+bcrypt. Configure `JWT_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `BCRYPT_ROUNDS`, and
+`REFRESH_TOKEN_TTL_DAYS` as documented in `.env.example`.
+
+Run `npm run seed:demo-users` to idempotently seed the demonstration customer and administrator;
+the command additionally requires `DEMO_CUSTOMER_PASSWORD` and `DEMO_ADMIN_PASSWORD`. The
+forgot-password route intentionally gives a generic, non-enumerating acknowledgement only:
+Phase 4 has no email delivery provider or password-reset completion flow. Frontend integration
+remains Phase 8, so the existing mock frontend remains untouched.
 
 ## Public catalogue API
 

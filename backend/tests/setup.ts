@@ -33,6 +33,10 @@ process.env.CORS_ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
 // connection below uses the in-memory server's URI. Overwritten (not defaulted)
 // so a developer's backend/.env cannot leak into the suite.
 process.env.MONGODB_URI = 'mongodb://127.0.0.1:27017/vestra-test-placeholder';
+process.env.JWT_SECRET = 'test-only-jwt-secret-that-is-at-least-32-characters';
+process.env.JWT_ACCESS_TTL_SECONDS = '900';
+process.env.BCRYPT_ROUNDS = '4';
+process.env.REFRESH_TOKEN_TTL_DAYS = '7';
 
 // ---------------------------------------------------------------------------
 
