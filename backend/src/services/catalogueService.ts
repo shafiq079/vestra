@@ -38,8 +38,7 @@ function productFilter(query: ProductQuery): FilterQuery<ProductShape> {
   const and: FilterQuery<ProductShape>[] = [];
   if (query.fits.length) and.push({ $or: query.fits.map((fit) => ({ fitDescription: new RegExp(escapeRegex(fit), 'i') })) });
   if (query.search) {
-    const regex = new RegExp(escapeRegex(query.search), 'i');
-    and.push({ $or: [{ name: regex }, { shortDescription: regex }, { category: regex }, { recommendationTags: regex }] });
+    filter.$text = { $search: query.search };
   }
   if (and.length) filter.$and = and;
   return filter;

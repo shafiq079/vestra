@@ -1,11 +1,12 @@
 import request from 'supertest';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 import { Category, Collection, Product } from '../src/models';
 import { seedCatalogue } from '../src/seed/catalogueSeed';
 
 const app = createApp({ enableDiagnostics: false });
 
+beforeAll(async () => { await Product.createIndexes(); });
 beforeEach(async () => { await seedCatalogue(); });
 afterAll(async () => { await Promise.all([Product.deleteMany({}), Category.deleteMany({}), Collection.deleteMany({})]); });
 
@@ -119,6 +120,44 @@ describe('special product endpoints', () => {
     }
     await request(app).get(`/api/products/${hidden!.slug}`).expect(404);
     await request(app).get(`/api/products/${hidden!.id}/related`).expect(404);
+  });
+});
+
+describe('product text search', () => {
+  it('uses the existing Product text index', async () => {
+    const indexes = await Product.collection.indexes();
+    expect(indexes.some((index) => index.name?.includes('text'))).toBe(true);
+  });
+
+  it.each([
+    ['name', 'Belted'],
+    ['shortDescription', 'iconic'],
+    ['category', 'dresses'],
+    ['recommendationTags', 'investment'],
+  ])('finds published products through the indexed %s field', async (_field, term) => {
+    const response = await request(app).get(`/api/products/search?q=${term}`).expect(200);
+    expect(response.body.length).toBeGreaterThan(0);
+    expect(response.body.every((product: { isPublished: boolean }) => product.isPublished)).toBe(true);
+  });
+
+  it('supports FilterState search and preserves another catalogue filter', async () => {
+    const search = await request(app).get('/api/products?search=silk').expect(200);
+    expect(search.body.some((product: { slug: string }) => product.slug === 'silk-wrap-dress-midnight')).toBe(true);
+
+    const combined = await request(app).get('/api/products?search=classic&genderCollection=men').expect(200);
+    expect(combined.body.length).toBeGreaterThan(0);
+    expect(combined.body.every((product: { genderCollection: string }) => product.genderCollection === 'men')).toBe(true);
+  });
+
+  it('excludes an unpublished product that matches indexed text', async () => {
+    const hidden = await Product.findOne({ slug: 'plisse-pleated-maxi-dress-terracotta' });
+    hidden!.isPublished = false;
+    await hidden!.save();
+
+    for (const path of ['/api/products/search?q=sculptural', '/api/products?search=sculptural']) {
+      const response = await request(app).get(path).expect(200);
+      expect(response.body.map((product: { id: string }) => product.id)).not.toContain(hidden!.id);
+    }
   });
 });
 
