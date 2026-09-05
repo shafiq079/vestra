@@ -10,7 +10,7 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phase 3 is complete. The Phase 4 authentication/account API is under development/review.**
+**Phase 4 is complete and merged. The Phase 5 cart/wishlist API is under development/review.**
 
 ### Phase 4 authentication and account API
 
@@ -30,6 +30,25 @@ the command additionally requires `DEMO_CUSTOMER_PASSWORD` and `DEMO_ADMIN_PASSW
 forgot-password route intentionally gives a generic, non-enumerating acknowledgement only:
 Phase 4 has no email delivery provider or password-reset completion flow. Frontend integration
 remains Phase 8, so the existing mock frontend remains untouched.
+
+### Phase 5 cart and wishlist API
+
+Cart routes are `GET /api/cart`, `POST /api/cart/items`,
+`PATCH|DELETE /api/cart/items/:itemId`, `DELETE /api/cart`,
+`POST|DELETE /api/cart/promo`, and `POST /api/cart/merge`. Authenticated carts derive their
+owner exclusively from the verified bearer token. Guests supply an opaque UUID-style identifier
+in `X-Guest-Cart-Id`; normal cart operations prefer an authenticated identity when both are
+present. The authenticated merge endpoint combines that guest cart into the user's cart and
+deletes the guest cart only after successful validation.
+
+Prices, variant availability, stock, subtotal, discount, and estimated total are authoritative
+server calculations. Client totals and prices are rejected by strict request schemas. Phase 5
+does not calculate delivery charges.
+
+Wishlist routes are authenticated `GET /api/wishlist` and `POST /api/wishlist/toggle`. The GET
+response is deliberately a populated `Product[]`, rather than persistence records or a wrapper,
+because that is the current frontend service contract. Frontend wiring remains deferred to
+Phase 8, so no frontend files are changed in Phase 5.
 
 ## Public catalogue API
 

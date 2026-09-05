@@ -20,6 +20,17 @@ All document schemas use the shared JSON transform: MongoDB `_id` becomes a stri
 
 Product `category`, optional `subcategory`, and optional `collection` match taxonomy slugs rather than ObjectIds. This makes the existing catalogue query contract direct while Category parentage remains referential. Cart/Wishlist product objects, Cart delivery option objects, User measurement profile, and User wishlist IDs are assembled in later service phases. Product aggregates (`rating`, `reviewCount`, `stockStatus`, colours, and available sizes) are denormalised read-optimised fields maintained by later catalogue/review services. Recommendation DTOs, VTO DTOs, size-form/results, dashboard metrics, and pagination/error wrappers are Phase 3+ service outputs, not Phase 2 documents.
 
+## Phase 5 Cart and wishlist response assembly
+
+Cart persistence retains exactly one owner (`userId` or the UUID-style `guestId` received in
+`X-Guest-Cart-Id`). Services resolve every embedded product/variant reference on reads and
+mutations, refresh `salePrice ?? price`, validate variant stock, and calculate all totals before
+constructing the frontend `Cart` DTO. Ownership and persistence-only fields are omitted.
+
+`POST /api/cart/merge` validates the complete guest/user result before saving the combined user
+cart and removing the guest cart. Wishlist records remain the unique persistence source, while
+`GET /api/wishlist` returns populated published `Product[]` to match `wishlistService.ts`.
+
 ## Phase 4 User response assembly
 
 The User DTO service starts with shared `frontendJson` output (which omits `passwordHash`),

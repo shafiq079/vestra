@@ -22,3 +22,9 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
     next();
   } catch (error) { next(error); }
 };
+
+/** Authenticate when a bearer token is present, while permitting guest requests. */
+export const optionalAuthenticate: RequestHandler = (req, res, next) => {
+  if (!req.get('Authorization')) return next();
+  return authenticate(req, res, next);
+};

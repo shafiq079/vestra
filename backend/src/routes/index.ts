@@ -16,6 +16,8 @@ import { categoriesRouter } from './categories';
 import { collectionsRouter } from './collections';
 import { authRouter } from './auth';
 import { profileRouter } from './profile';
+import { cartRouter } from './cart';
+import { wishlistRouter } from './wishlist';
 
 export interface ApiRouterOptions {
   /** Mounts the test-only diagnostics routes. Never enable in a deployment. */
@@ -31,6 +33,8 @@ export function createApiRouter({ enableDiagnostics }: ApiRouterOptions): Router
   router.use('/collections', collectionsRouter);
   router.use('/auth', authRouter);
   router.use('/profile', profileRouter);
+  router.use('/cart', cartRouter);
+  router.use('/wishlist', wishlistRouter);
 
   if (enableDiagnostics) {
     router.use('/__diagnostics', diagnosticsRouter);
