@@ -1,6 +1,6 @@
 # VESTRA — Backend Implementation Plan
 
-**Status:** Phase 0A complete · Phase 0B complete · **Phase 1 complete and merged** · **Phase 2 is next (not started)**
+**Status:** Phase 0A complete · Phase 0B complete · Phase 1 complete and merged · **Phase 2 complete and merged** · **Phase 3 current/in progress**
 **Integration branch:** `backend-development` — every phase is developed on its own scoped branch and merged in by pull request
 **Scope owner:** project owner (dissertation author)
 
@@ -80,8 +80,8 @@ Consequence: by the time Phase 11 begins, every route group already has working 
 | 0A | Development setup — governance and architecture documents | — | **Complete** |
 | 0B | Development setup — independent `backend/package.json` + `backend/package-lock.json`, root `workspaces` removed (no scripts) | 0A | **Complete** |
 | 1 | Express/TypeScript foundation + MongoDB connection + health endpoint + test tooling + root backend scripts | 0A **and** 0B | **Complete and merged** |
-| 2 | Database/schema design | 1 | **Next — not started** |
-| 3 | Product catalogue, categories and collections API | 2 | Not started |
+| 2 | Database/schema design | 1 | **Complete and merged** |
+| 3 | Product catalogue, categories and collections API | 2 | **In progress / under review** |
 | 4 | Authentication, users, profiles and addresses | 2 | Not started |
 | 5 | Cart and wishlist | 3, 4 | Not started |
 | 6 | Checkout, orders and inventory updates | 3, 4, 5 | Not started |
