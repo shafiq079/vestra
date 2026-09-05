@@ -2,10 +2,10 @@ import { Cart, Product } from '../models';
 import type { AddCartItemInput } from '../validators/cart';
 import { HttpError } from '../utils/httpError';
 import { evaluatePromo, type PromoResult } from './promoService';
+import { calculateCartTotals } from './cartTotals';
 
 export type CartOwner = { userId: string; guestId?: never } | { guestId: string; userId?: never };
 const ownerFilter = (owner: CartOwner) => 'userId' in owner ? { userId: owner.userId } : { guestId: owner.guestId };
-const money = (value: number) => Number(value.toFixed(2));
 
 async function currentItems(cart: InstanceType<typeof Cart>) {
   const products = await Product.find({ _id: { $in: cart.items.map((item) => item.productId) }, isPublished: true });
@@ -23,11 +23,12 @@ async function currentItems(cart: InstanceType<typeof Cart>) {
 
 async function recalculate(cart: InstanceType<typeof Cart>) {
   const resolved = await currentItems(cart);
-  cart.subtotal = money(resolved.reduce((total, { item }) => total + item.price * item.quantity, 0));
-  const promo = evaluatePromo(cart.promoCode, cart.subtotal);
+  const totals = calculateCartTotals(resolved.map(({ item }) => item), cart.promoCode);
+  cart.subtotal = totals.subtotal;
+  const { promo } = totals;
   if (cart.promoCode && !promo.valid) cart.promoCode = undefined;
-  cart.discount = promo.valid ? promo.discount : 0;
-  cart.estimatedTotal = money(Math.max(0, cart.subtotal - cart.discount));
+  cart.discount = totals.discount;
+  cart.estimatedTotal = totals.estimatedTotal;
   await cart.save();
   return { resolved, promo };
 }
@@ -93,7 +94,7 @@ export async function removePromo(owner: CartOwner) {
 export async function mergeCart(userId: string, guestId: string) {
   const guest = await Cart.findOne({ guestId }); if (!guest) return getCart({ userId });
   const user = await ownedCart({ userId });
-  // Resolve both carts before mutating either, so any invalid merge is all-or-nothing.
+  // Pre-validate the complete merge before applying any line mutations.
   await currentItems(guest); await currentItems(user);
   const additions = guest.items.map((item) => ({ productId: item.productId, variantId: item.variantId,
     colour: item.colour, size: item.size, quantity: item.quantity, price: item.price }));

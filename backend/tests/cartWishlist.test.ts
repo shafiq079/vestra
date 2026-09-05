@@ -35,6 +35,17 @@ describe('Phase 5 cart', () => {
     product.isPublished = false; await product.save(); expect((await request(app).post('/api/cart/items').set(guest()).send(addBody(product))).status).toBe(404);
     expect((await request(app).patch('/api/cart/items/bad').set(guest()).send({ quantity: 1 })).status).toBe(400);
   });
+  it('returns 404 for a valid but missing product and rejects client-owned totals', async () => {
+    const missingProductId = new Product()._id.toString();
+    const variantId = new Product()._id.toString();
+    expect((await request(app).post('/api/cart/items').set(guest()).send({ productId: missingProductId,
+      variantId, colour: 'Black', size: 'M', quantity: 1 })).status).toBe(404);
+    const product = await Product.create(productFixture({ isPublished: true }));
+    for (const field of ['subtotal', 'discount', 'estimatedTotal']) {
+      const response = await request(app).post('/api/cart/items').set(guest()).send(addBody(product, { [field]: 0 }));
+      expect(response.status).toBe(400); expect(response.body.code).toBe('BAD_REQUEST');
+    }
+  });
   it('updates, removes, and idempotently clears only owned cart items', async () => {
     const product = await Product.create(productFixture({ isPublished: true, variants: [{ sku: 'CART-3', colour: 'Black', colourHex: '#000', size: 'M', stock: 2 }] }));
     const added = await request(app).post('/api/cart/items').set(guest()).send(addBody(product)); const id = added.body.items[0].id;
@@ -80,6 +91,7 @@ describe('Phase 5 wishlist', () => {
   it('rejects invalid, missing, and unpublished products and isolates users', async () => {
     const [a, b] = await Promise.all([createTestUser(), createTestUser({ email: 'wish-b@example.com' })]); const product = await Product.create(productFixture({ isPublished: true }));
     expect((await request(app).post('/api/wishlist/toggle').set(authHeader(mintTestAccessToken(a))).send({ productId: 'bad' })).status).toBe(400);
+    expect((await request(app).post('/api/wishlist/toggle').set(authHeader(mintTestAccessToken(a))).send({ productId: new Product()._id.toString() })).status).toBe(404);
     await request(app).post('/api/wishlist/toggle').set(authHeader(mintTestAccessToken(a))).send({ productId: product.id }); expect((await request(app).get('/api/wishlist').set(authHeader(mintTestAccessToken(b)))).body).toEqual([]);
     const hidden = await Product.create(productFixture({ isPublished: false })); expect((await request(app).post('/api/wishlist/toggle').set(authHeader(mintTestAccessToken(a))).send({ productId: hidden.id })).status).toBe(404);
   });
