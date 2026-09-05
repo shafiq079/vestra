@@ -27,6 +27,10 @@ export async function updateAddress(user: UserDocument, id: string, input: Addre
   const address = ownedAddress(user, id);
   if (input.isDefault === true) user.addresses.forEach((a) => { a.isDefault = false; });
   for (const [key, value] of Object.entries(input)) address.set(key, value);
+  if (input.isDefault === false && !user.addresses.some((item) => item.isDefault)) {
+    const replacement = user.addresses.find((item) => item._id.toString() !== id);
+    (replacement ?? address).isDefault = true;
+  }
   await user.save(); return buildUserDto(user);
 }
 export async function setDefaultAddress(user: UserDocument, id: string) {

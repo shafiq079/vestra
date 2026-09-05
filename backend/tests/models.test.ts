@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  Cart, Category, Collection, DeliveryOption, MeasurementProfile, Order,
+  AuthSession, Cart, Category, Collection, DeliveryOption, MeasurementProfile, Order,
   Product, Review, User, WishlistItem,
 } from '../src/models';
 import {
@@ -13,14 +13,14 @@ import {
 beforeAll(async () => {
   await Promise.all([
     User, MeasurementProfile, Product, Category, Collection, Review,
-    Cart, WishlistItem, Order, DeliveryOption,
+    Cart, WishlistItem, Order, DeliveryOption, AuthSession,
   ].map((registeredModel) => registeredModel.syncIndexes()));
 });
 
 describe('Phase 2 models', () => {
   it('registers every model once', async () => {
     expect(Object.keys(mongoose.models).sort()).toEqual([
-      'Cart', 'Category', 'Collection', 'DeliveryOption', 'MeasurementProfile',
+      'AuthSession', 'Cart', 'Category', 'Collection', 'DeliveryOption', 'MeasurementProfile',
       'Order', 'Product', 'Review', 'User', 'WishlistItem',
     ].sort());
     await expect(import('../src/models/index.js')).resolves.toBeDefined();

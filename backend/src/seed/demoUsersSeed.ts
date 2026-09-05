@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { MeasurementProfile, User } from '../models';
 
 export interface DemoPasswords { customer: string; admin: string }
+class DemoSeedConfigurationError extends Error {}
 export async function seedDemoUsers(passwords: DemoPasswords): Promise<void> {
   const records = [
     { email: 'emma.thompson@example.co.uk', firstName: 'Emma', lastName: 'Thompson', role: 'customer' as const, password: passwords.customer,
@@ -20,9 +21,18 @@ export async function seedDemoUsers(passwords: DemoPasswords): Promise<void> {
 
 async function main(): Promise<void> {
   const missing = [!env.DEMO_CUSTOMER_PASSWORD && 'DEMO_CUSTOMER_PASSWORD', !env.DEMO_ADMIN_PASSWORD && 'DEMO_ADMIN_PASSWORD'].filter(Boolean);
-  if (missing.length) throw new Error(`Missing required demo seed variables: ${missing.join(', ')}`);
+  if (missing.length) throw new DemoSeedConfigurationError(`Missing required demo seed variables: ${missing.join(', ')}`);
   await connectDatabase(env.MONGODB_URI);
   try { await seedDemoUsers({ customer: env.DEMO_CUSTOMER_PASSWORD!, admin: env.DEMO_ADMIN_PASSWORD! }); process.stdout.write('Seeded demo customer and admin users.\n'); }
   finally { await disconnectDatabase(); }
 }
-if (require.main === module) main().catch((error: unknown) => { process.stderr.write(`${error instanceof Error ? error.message : 'Demo user seed failed.'}\n`); process.exitCode = 1; });
+if (require.main === module) main().catch((error: unknown) => {
+  // Runtime and driver errors can contain a MongoDB URI (including credentials).
+  // Keep command-line failure output deliberately generic; validation above is
+  // the only error allowed to name anything, and it names variables, not values.
+  const message = error instanceof DemoSeedConfigurationError
+    ? error.message
+    : 'Demo user seed failed. Check the required configuration and database availability.';
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+});
