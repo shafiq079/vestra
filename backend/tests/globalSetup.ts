@@ -8,7 +8,7 @@
  * database after each file while `fileParallelism` is off.
  */
 
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import type { TestProject } from 'vitest/node';
 
 import { TEST_DATABASE_NAME } from './constants';
@@ -20,7 +20,7 @@ declare module 'vitest' {
 }
 
 export default async function globalSetup(project: TestProject): Promise<() => Promise<void>> {
-  const server = await MongoMemoryServer.create();
+  const server = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
 
   project.provide('mongoUri', server.getUri(TEST_DATABASE_NAME));
 

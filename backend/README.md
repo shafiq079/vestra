@@ -10,7 +10,7 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phase 4 is complete and merged. The Phase 5 cart/wishlist API is under development/review.**
+**Phase 5 is complete and merged. The Phase 6 checkout/order API is under development/review.**
 
 ### Phase 4 authentication and account API
 
@@ -49,6 +49,27 @@ Wishlist routes are authenticated `GET /api/wishlist` and `POST /api/wishlist/to
 response is deliberately a populated `Product[]`, rather than persistence records or a wrapper,
 because that is the current frontend service contract. Frontend wiring remains deferred to
 Phase 8, so no frontend files are changed in Phase 5.
+
+### Phase 6 checkout and orders API (under review)
+
+`POST /api/orders` converts the persisted server cart to an order. A bearer token selects the
+authenticated cart; otherwise both a UUID-style `X-Guest-Cart-Id` and valid `guestEmail` are
+required. Invalid supplied tokens return 401 rather than falling back to guest checkout.
+Authenticated `GET /api/orders` and `GET /api/orders/:orderId` restrict every query to the
+verified user's orders; public guest history/detail lookup is not provided.
+
+Checkout reloads published products and variants and recomputes price (`salePrice ?? price`),
+promo, subtotal, discount, delivery, and total. Canonical options are Standard (`del1`, free),
+Express (`del2`, £7.95), and Next Day (`del3`, £12.95); delivery is free from a £75 server
+subtotal. Estimates use the option's maximum working-day duration. Client snapshots and totals
+are compatibility input only and never authoritative.
+
+Stock, affected-product `stockStatus`, order insertion, and cart deletion share one MongoDB
+transaction, so failure rolls everything back. Changed products derive status from total remaining
+variant units: zero is `out_of_stock`, 1-5 is `low_stock`, and 6+ is `in_stock`.
+
+Payment is **simulation only**: success records `confirmed` / `paid`, but no payment provider is
+called and no card number, CVC, expiry, or payment secret is accepted or stored.
 
 ## Public catalogue API
 

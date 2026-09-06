@@ -31,6 +31,15 @@ constructing the frontend `Cart` DTO. Ownership and persistence-only fields are 
 cart and removing the guest cart. Wishlist records remain the unique persistence source, while
 `GET /api/wishlist` returns populated published `Product[]` to match `wishlistService.ts`.
 
+## Phase 6 order response assembly
+
+Checkout resolves a persisted user/guest cart inside a MongoDB transaction and creates immutable
+product, variant, address, and canonical delivery snapshots. The service explicitly assembles the
+frontend `Order`/`OrderItem` DTO, converts references to string ids, and omits persistence and cart
+ownership internals. Prices, promo eligibility, delivery cost, totals, statuses, order number, and
+working-day estimate are server-derived. Inventory, affected-product `stockStatus`, order creation,
+and consumed-cart deletion commit or roll back together.
+
 ## Phase 4 User response assembly
 
 The User DTO service starts with shared `frontendJson` output (which omits `passwordHash`),
