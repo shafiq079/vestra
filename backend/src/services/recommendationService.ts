@@ -25,9 +25,12 @@ export const RECOMMENDATION_GROUPS: Record<RecommendationType, Metadata> = {
   trending: { title: 'Trending Now', subtitle: 'Popular with VESTRA customers', placement: 'homepage', strategy: 'trending' },
 };
 
-type Affinity = { categories: Set<string>; collections: Set<string>; genders: Set<string>; tags: Set<string>; excluded: Set<string> };
+type Affinity = { categories: Set<string>; collections: Set<string>; genders: Set<string>; tags: Set<string> };
+type UserSignals = { combinedAffinity: Affinity; wishlistAffinity: Affinity; purchaseAffinity: Affinity;
+  wishlistIds: Set<string>; purchasedIds: Set<string>; purchasedSizes: Map<string, number> };
 type Ranked = { product: ProductDocument; score: number; explanation: string; sourceContext?: string };
-const emptyAffinity = (): Affinity => ({ categories: new Set(), collections: new Set(), genders: new Set(), tags: new Set(), excluded: new Set() });
+type RecommendationContext = { products: ProductDocument[]; counts: Map<string, number>; userSignals: UserSignals; source: ProductDocument | null };
+const emptyAffinity = (): Affinity => ({ categories: new Set(), collections: new Set(), genders: new Set(), tags: new Set() });
 const id = (product: ProductDocument) => product._id.toString();
 const available = (product: ProductDocument) => product.isPublished && product.variants.some((variant) => variant.stock > 0);
 const successfulOrderFilter = { paymentStatus: 'paid', status: { $nin: ['cancelled', 'returned'] } } as const;
@@ -44,25 +47,33 @@ function stableRank(items: Ranked[], limit: number) {
   return [...unique.values()].sort((a, b) => b.score - a.score || id(a.product).localeCompare(id(b.product))).slice(0, limit);
 }
 
-async function signals(userId?: string): Promise<{ affinity: Affinity; wishlist: Set<string>; sizes: Map<string, number> }> {
-  const affinity = emptyAffinity(); const wishlist = new Set<string>(); const sizes = new Map<string, number>();
-  if (!userId) return { affinity, wishlist, sizes };
+function addAffinity(affinity: Affinity, product: ProductDocument) {
+  affinity.categories.add(product.category); if (product.collection) affinity.collections.add(product.collection);
+  affinity.genders.add(product.genderCollection); product.recommendationTags.forEach((tag) => affinity.tags.add(tag));
+}
+
+async function signals(userId?: string): Promise<UserSignals> {
+  const combinedAffinity = emptyAffinity(); const wishlistAffinity = emptyAffinity(); const purchaseAffinity = emptyAffinity();
+  const wishlistIds = new Set<string>(); const purchasedIds = new Set<string>(); const purchasedSizes = new Map<string, number>();
+  const result = { combinedAffinity, wishlistAffinity, purchaseAffinity, wishlistIds, purchasedIds, purchasedSizes };
+  if (!userId) return result;
   const [saved, orders] = await Promise.all([
     WishlistItem.find({ userId }).select('productId'),
     Order.find({ userId, ...successfulOrderFilter }).select('items'),
   ]);
   const signalIds = new Set<string>();
-  saved.forEach((item) => { const value = item.productId.toString(); wishlist.add(value); signalIds.add(value); affinity.excluded.add(value); });
+  saved.forEach((item) => { const value = item.productId.toString(); wishlistIds.add(value); signalIds.add(value); });
   orders.forEach((order) => order.items.forEach((item) => {
-    const value = item.productId.toString(); signalIds.add(value); affinity.excluded.add(value);
-    sizes.set(item.size, (sizes.get(item.size) ?? 0) + item.quantity);
+    const value = item.productId.toString(); signalIds.add(value); purchasedIds.add(value);
+    purchasedSizes.set(item.size, (purchasedSizes.get(item.size) ?? 0) + item.quantity);
   }));
   const products = await Product.find({ _id: { $in: [...signalIds] } });
   products.forEach((product) => {
-    affinity.categories.add(product.category); if (product.collection) affinity.collections.add(product.collection);
-    affinity.genders.add(product.genderCollection); product.recommendationTags.forEach((tag) => affinity.tags.add(tag));
+    addAffinity(combinedAffinity, product);
+    if (wishlistIds.has(id(product))) addAffinity(wishlistAffinity, product);
+    if (purchasedIds.has(id(product))) addAffinity(purchaseAffinity, product);
   });
-  return { affinity, wishlist, sizes };
+  return result;
 }
 
 function affinityScore(product: ProductDocument, affinity: Affinity): { score: number; explanation?: string } {
@@ -94,8 +105,7 @@ function similarScore(product: ProductDocument, source: ProductDocument, complem
   return { score: product.genderCollection === source.genderCollection ? 0.16 : 0.05, explanation: 'Popular with VESTRA customers.' };
 }
 
-export async function recommendationGroup(type: RecommendationType, query: RecommendationQuery, userId?: string) {
-  const metadata = RECOMMENDATION_GROUPS[type];
+async function buildContext(query: RecommendationQuery, userId?: string): Promise<RecommendationContext> {
   const [products, counts, userSignals] = await Promise.all([
     Product.find({ isPublished: true, variants: { $elemMatch: { stock: { $gt: 0 } } } }), orderCounts(), signals(userId),
   ]);
@@ -104,11 +114,17 @@ export async function recommendationGroup(type: RecommendationType, query: Recom
     source = await Product.findOne({ _id: query.productId, isPublished: true });
     if (!source) throw HttpError.notFound('Product not found.');
   }
+  return { products, counts, userSignals, source };
+}
+
+async function groupFromContext(type: RecommendationType, query: RecommendationQuery, context: RecommendationContext) {
+  const metadata = RECOMMENDATION_GROUPS[type];
+  const { products, counts, userSignals, source } = context;
   const candidates = products.filter((product) => available(product) && (!source || id(product) !== id(source)));
   let ranked: Ranked[];
   if (metadata.strategy === 'similar' || metadata.strategy === 'complementary') {
     ranked = candidates.map((product) => source
-      ? { product, ...similarScore(product, source, metadata.strategy === 'complementary'), sourceContext: `Product ${id(source)}` }
+      ? { product, ...similarScore(product, source, metadata.strategy === 'complementary'), sourceContext: `Similar to ${source.name}` }
       : { product, score: round(quality(product, counts.get(id(product)) ?? 0)), explanation: 'Popular with VESTRA customers.' });
   } else if (metadata.strategy === 'cooccurrence' && source) {
     const together = new Map<string, number>();
@@ -122,21 +138,26 @@ export async function recommendationGroup(type: RecommendationType, query: Recom
   } else if (metadata.strategy === 'new') {
     const newest = Math.max(1, ...candidates.map((product) => product.createdAt.getTime()));
     const oldest = Math.min(newest, ...candidates.map((product) => product.createdAt.getTime())); const span = Math.max(1, newest - oldest);
-    ranked = candidates.filter((product) => !userSignals.affinity.excluded.has(id(product))).map((product) => {
-      const match = affinityScore(product, userSignals.affinity); const recency = (product.createdAt.getTime() - oldest) / span;
+    const excluded = new Set([...userSignals.wishlistIds, ...userSignals.purchasedIds]);
+    ranked = candidates.filter((product) => !excluded.has(id(product))).map((product) => {
+      const match = affinityScore(product, userSignals.combinedAffinity); const recency = (product.createdAt.getTime() - oldest) / span;
       return { product, score: round(0.5 + recency * 0.25 + (product.badges.includes('new') ? 0.15 : 0) + match.score * 0.1),
         explanation: match.score ? 'New arrival matching your preferred categories or styles.' : 'One of the newest available arrivals.' };
     });
   } else if (metadata.strategy === 'personal' || metadata.strategy === 'wishlist') {
-    const hasSignals = userSignals.affinity.excluded.size > 0;
-    ranked = candidates.filter((product) => !userSignals.affinity.excluded.has(id(product))).map((product) => {
-      const match = affinityScore(product, userSignals.affinity);
+    const affinity = metadata.strategy === 'wishlist' ? userSignals.wishlistAffinity : userSignals.combinedAffinity;
+    const excluded = metadata.strategy === 'wishlist' ? userSignals.wishlistIds : new Set([...userSignals.wishlistIds, ...userSignals.purchasedIds]);
+    const hasSignals = excluded.size > 0;
+    ranked = candidates.filter((product) => !excluded.has(id(product))).map((product) => {
+      const match = affinityScore(product, affinity);
       return { product, score: round(match.score + quality(product, counts.get(id(product)) ?? 0) * 0.45),
-        explanation: hasSignals && match.explanation ? match.explanation : 'Popular with VESTRA customers.' };
+        explanation: hasSignals && match.explanation
+          ? (metadata.strategy === 'wishlist' ? match.explanation.replace('items you saved or purchased', 'an item in your wishlist').replace('saved or purchased', 'added to your wishlist') : match.explanation)
+          : 'Popular with VESTRA customers.' };
     });
   } else {
     let preferredSize: string | undefined;
-    if (metadata.strategy === 'size') preferredSize = [...userSignals.sizes].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0];
+    if (metadata.strategy === 'size') preferredSize = [...userSignals.purchasedSizes].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0];
     ranked = candidates.map((product) => {
       const fits = preferredSize !== undefined && product.variants.some((variant) => variant.size === preferredSize && variant.stock > 0);
       return { product, score: round(quality(product, counts.get(id(product)) ?? 0) + (fits ? 0.2 : 0)),
@@ -150,7 +171,12 @@ export async function recommendationGroup(type: RecommendationType, query: Recom
     items, isActive: true, placement: metadata.placement };
 }
 
+export async function recommendationGroup(type: RecommendationType, query: RecommendationQuery, userId?: string) {
+  return groupFromContext(type, query, await buildContext(query, userId));
+}
+
 export async function recommendationGroups(query: RecommendationQuery, userId?: string) {
   const types = RECOMMENDATION_TYPES.filter((type) => !query.placement || RECOMMENDATION_GROUPS[type].placement === query.placement);
-  return Promise.all(types.map((type) => recommendationGroup(type, query, userId)));
+  const context = await buildContext(query, userId);
+  return Promise.all(types.map((type) => groupFromContext(type, query, context)));
 }

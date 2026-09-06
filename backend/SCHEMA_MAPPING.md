@@ -8,6 +8,8 @@ only Product DTOs plus deterministic 0–1 scores and truthful explanations. Per
 restricted to the authenticated user's wishlist, successful purchases, and purchased-size
 snapshots; order popularity and co-occurrence are aggregate. There is no browsing-history
 persistence, measurement-to-size inference, ML model, or external recommendation provider.
+Wishlist and purchase affinity are calculated separately so wishlist-labelled results never use
+purchase history as a substitute when the user's wishlist is empty.
 
 ## Phase 7 persistence notes
 

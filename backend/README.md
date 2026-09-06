@@ -17,6 +17,10 @@ Scores use documented deterministic weights in the service, are rounded to a 0â€
 ties use product IDs. Personalised strategies exclude their signal products and cold-start
 cleanly falls back to truthful popularity/newness explanations.
 
+Wishlist and purchase affinities remain separate: `inspired_by_wishlist` uses wishlist products
+only, while `recommended_for_you` may combine both sources. Multi-group requests build one
+shared catalogue/order/user-signal context rather than repeating those database reads per group.
+
 This phase creates no recommendation collection, uses no ML or external provider, and does not
 infer sizes from measurements. `trending_in_your_size` uses only purchased order-item size
 snapshots. Because browsing history is not persisted, `based_on_recently_viewed` uses optional
