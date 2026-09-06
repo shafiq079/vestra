@@ -1,5 +1,22 @@
 # VESTRA — Backend
 
+## Phase 7 admin API (under review)
+
+All `/api/admin` routes are centrally protected by bearer authentication and the `admin`
+role. They manage the same Product and Category collections read by the public catalogue.
+The surface includes UTC calendar-month dashboard metrics; product CRUD, safe duplication,
+publication, transactional bulk operations and product-only seed reset; category rename
+cascades and in-use protection; inventory updates using the checkout stock-status helper;
+safe user/order/review management DTOs; and canonical Phase 5 promotion definitions.
+
+`POST /api/admin/products/import` accepts quoted `text/csv`, validates each row, writes all
+valid rows in one transaction, and returns counts, imported Product DTOs, and row-numbered
+errors. Admin mutations persist privacy-minimal audit entries: identifiers, actions, changed
+field names, statuses and counts only—never credentials, payment data, request bodies, email,
+or addresses. Promotion display dates and numeric usage limits are deterministic display-only demo metadata and
+are not persistent usage accounting. VTO and size-recommendation dashboard metrics remain
+honestly zero until their later implementation phases.
+
 Node.js / Express / TypeScript REST API over MongoDB Atlas, consumed by the React
 frontend in [`frontend/`](../frontend).
 
@@ -10,7 +27,7 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phase 5 is complete and merged. The Phase 6 checkout/order API is under development/review.**
+**Phase 6 is complete and merged. The Phase 7 admin API is under development/review.**
 
 ### Phase 4 authentication and account API
 

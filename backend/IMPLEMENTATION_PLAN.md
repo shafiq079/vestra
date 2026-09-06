@@ -1,6 +1,6 @@
 # VESTRA — Backend Implementation Plan
 
-**Status:** Phase 0A complete · Phase 0B complete · Phase 1 complete and merged · **Phase 2 complete and merged** · **Phase 3 complete and merged** · **Phase 4 complete and merged** · **Phase 5 complete and merged** · **Phase 6 in progress / under review**
+**Status:** Phases 0A–6 complete and merged · **Phase 7 in progress / under review**
 **Integration branch:** `backend-development` — every phase is developed on its own scoped branch and merged in by pull request
 **Scope owner:** project owner (dissertation author)
 
@@ -84,8 +84,8 @@ Consequence: by the time Phase 11 begins, every route group already has working 
 | 3 | Product catalogue, categories and collections API | 2 | **Complete and merged** |
 | 4 | Authentication, users, profiles and addresses | 2 | **Complete and merged** |
 | 5 | Cart and wishlist | 3, 4 | **Complete and merged** |
-| 6 | Checkout, orders and inventory updates | 3, 4, 5 | **In progress / under review** |
-| 7 | Admin APIs | 3, 4, 6 | Not started |
+| 6 | Checkout, orders and inventory updates | 3, 4, 5 | **Complete and merged** |
+| 7 | Admin APIs | 3, 4, 6 | **In progress / under review** |
 | 8 | Gradual frontend/backend integration | 3–7 | Not started |
 | 9 | Product recommendations | 3, 6 | Not started |
 | 10 | Virtual Try-On backend/provider abstraction | 1, 3, 4 | Not started |

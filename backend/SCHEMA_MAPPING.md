@@ -1,5 +1,14 @@
 # Phase 2 schema mapping
 
+## Phase 7 persistence notes
+
+Admin catalogue and inventory endpoints mutate the existing `Product` and `Category` models;
+there is no parallel admin catalogue. Category slug changes transactionally cascade to
+`Product.category`, while deletions reject categories referenced by products or children.
+Orders retain immutable item snapshots when products are deleted. `AdminAuditLog` is an
+internal persistence-only model (`actorUserId`, action, entity type/id, safe metadata and
+creation time) and deliberately has no frontend DTO or listing route.
+
 All document schemas use the shared JSON transform: MongoDB `_id` becomes a string `id`, `__v` is removed, every `Date` becomes an ISO string, and every ObjectId reference (including array entries) becomes a string. The recursive rule also covers embedded identifiers.
 
 | Model / schema | Frontend type | Persistence and response mapping |

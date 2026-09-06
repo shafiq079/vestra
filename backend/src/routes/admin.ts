@@ -1,0 +1,33 @@
+import express, { Router } from 'express';
+import * as c from '../controllers/adminController';
+import { authenticate } from '../middleware/authenticate';
+import { authoriseRole } from '../middleware/authoriseRole';
+
+export const adminRouter = Router();
+adminRouter.use(authenticate, authoriseRole('admin'));
+adminRouter.get('/dashboard',c.dashboard);
+adminRouter.get('/products',c.products);
+// Static product routes intentionally precede /:id.
+adminRouter.post('/products/bulk/publish',c.bulkPublish);
+adminRouter.post('/products/bulk/delete',c.bulkDelete);
+adminRouter.post('/products/reset',c.reset);
+adminRouter.post('/products/import',express.text({type:'text/csv',limit:'1mb'}),c.csvImport);
+adminRouter.post('/products',c.createProduct);
+adminRouter.get('/products/:id',c.product);
+adminRouter.put('/products/:id',c.updateProduct);
+adminRouter.delete('/products/:id',c.deleteProduct);
+adminRouter.post('/products/:id/duplicate',c.duplicateProduct);
+adminRouter.patch('/products/:id/published',c.published);
+adminRouter.get('/categories',c.categories);
+adminRouter.post('/categories',c.createCategory);
+adminRouter.put('/categories/:id',c.updateCategory);
+adminRouter.delete('/categories/:id',c.deleteCategory);
+adminRouter.get('/inventory',c.inventory);
+adminRouter.patch('/inventory/:productId/variants/:variantId',c.updateStock);
+adminRouter.get('/users',c.users);
+adminRouter.patch('/users/:userId/active',c.active);
+adminRouter.get('/orders',c.orders);
+adminRouter.patch('/orders/:orderId/status',c.status);
+adminRouter.get('/reviews',c.reviews);
+adminRouter.patch('/reviews/:reviewId/moderation',c.moderation);
+adminRouter.get('/promotions',c.promotions);

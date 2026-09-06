@@ -9,3 +9,4 @@ export * from './WishlistItem';
 export * from './Order';
 export * from './DeliveryOption';
 export * from './AuthSession';
+export * from './AdminAuditLog';

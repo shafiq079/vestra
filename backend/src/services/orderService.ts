@@ -14,7 +14,7 @@ const primaryImage = (images: Array<{ url: string; position: number }>) =>
   [...images].sort((a, b) => a.position - b.position || a.url.localeCompare(b.url))[0]?.url ?? '';
 const money = (n: number) => Number(n.toFixed(2));
 
-function dto(order: InstanceType<typeof Order>) {
+export function buildOrderDto(order: InstanceType<typeof Order>) {
   const value = order.toObject();
   return { id: order.id, orderNumber: value.orderNumber,
     ...(value.userId ? { userId: value.userId.toString() } : {}), ...(value.guestEmail ? { guestEmail: value.guestEmail } : {}),
@@ -77,7 +77,7 @@ export async function createOrder(owner: CartOwner, input: CheckoutInput) {
         // attempted in a fresh transaction while the bounded retry remains within checkout.
         await session.withTransaction(async () => { created = await transact(owner, input, session); });
         if (!created) throw new Error('Transaction did not create an order');
-        return dto(created);
+        return buildOrderDto(created);
       } catch (error) {
         if (isOrderNumberCollision(error)) {
           if (attempt < ORDER_NUMBER_ATTEMPTS) continue;
@@ -101,9 +101,9 @@ function isOrderNumberCollision(error: unknown): boolean {
     (duplicate.keyPattern?.orderNumber !== undefined || duplicate.keyValue?.orderNumber !== undefined);
 }
 
-export async function listOrders(userId: string) { return Promise.all((await Order.find({ userId }).sort({ createdAt: -1 })).map(dto)); }
+export async function listOrders(userId: string) { return Promise.all((await Order.find({ userId }).sort({ createdAt: -1 })).map(buildOrderDto)); }
 export async function getOrder(userId: string, orderId: string) {
   const order = await Order.findOne({ _id: orderId, userId });
   if (!order) throw HttpError.notFound('Order not found.');
-  return dto(order);
+  return buildOrderDto(order);
 }
