@@ -141,7 +141,9 @@ describe('Phase 9 recommendation API', () => {
     const [history, availableM, unavailableM] = await Product.find({ isPublished: true }).limit(3);
     for (const product of [history!, availableM!, unavailableM!]) { product.rating = 0; product.reviewCount = 0; product.badges = []; }
     history!.variants.forEach((variant) => { variant.stock = 0; });
+    availableM!.variants.forEach((variant) => { variant.stock = 0; });
     availableM!.variants[0]!.size = 'M'; availableM!.variants[0]!.stock = 2;
+    unavailableM!.variants.forEach((variant) => { variant.stock = 0; });
     unavailableM!.variants[0]!.size = 'L'; unavailableM!.variants[0]!.stock = 2;
     await Promise.all([history!.save(), availableM!.save(), unavailableM!.save()]); await restrictCandidates([history!, availableM!, unavailableM!]);
     const user = await createTestUser({ email: 'size-phase9@example.com' }); await makeOrder(user._id, [history!], { size: 'M' });
