@@ -49,13 +49,14 @@ describe('admin products and shared catalogue', () => {
   });
 
   it('partially updates while preserving createdAt and existing embedded identity', async () => {
-    const created = (await api().post('/api/admin/products').send(base())).body;
+    const created = (await api().post('/api/admin/products').send(base({ badges: ['new'], materials: ['Wool'], tryOnEligible: true }))).body;
     const update = await api().put(`/api/admin/products/${created.id}`).send({ name: 'Changed', price: 80, createdAt: '2000-01-01' });
     expect(update.status).toBe(400);
     const variant = created.variants[0];
     const good = await api().put(`/api/admin/products/${created.id}`).send({ name: 'Changed', price: 80, variants: [{ ...variant, stock: 9 }, { id: 'new-client', sku: 'NEW-SKU', colour: 'Blue', colourHex: '#00f', size: 'L', stock: 1 }] });
     expect(good.status).toBe(200);
     expect(good.body.createdAt).toBe(created.createdAt);
+    expect(good.body).toMatchObject({ isPublished: true, badges: ['new'], materials: ['Wool'], tryOnEligible: true, images: created.images });
     expect(good.body.variants[0].id).toBe(variant.id);
     expect(good.body.variants[1].id).toMatch(/^[a-f\d]{24}$/);
     expect(good.body.variants[1].id).not.toBe('new-client');

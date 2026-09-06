@@ -4,7 +4,7 @@ import { app } from '../src/app';
 import { createTestUser, mintTestAccessToken } from './helpers/auth';
 
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
-interface RouteCase { method: Method; path: string; body?: unknown; csv?: string }
+interface RouteCase { method: Method; path: string; body?: Record<string, unknown>; csv?: string }
 const id = '000000000000000000000001';
 const routes: RouteCase[] = [
   { method: 'get', path: '/api/admin/dashboard' },

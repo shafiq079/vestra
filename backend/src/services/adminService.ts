@@ -71,7 +71,7 @@ export async function updateProduct(id: string, input: ProductUpdate, actor: str
   const value = await getProduct(id); await ensureProductUnique(input, id);
   Object.assign(value, normalized(input, value));
   const price = input.price ?? value.price; const sale = input.salePrice ?? value.salePrice;
-  if (sale !== undefined && sale >= price) throw HttpError.badRequest('Invalid product update.', { salePrice: ['Sale price must be lower than price'] });
+  if (sale != null && sale >= price) throw HttpError.badRequest('Invalid product update.', { salePrice: ['Sale price must be lower than price'] });
   try { await value.save(); await audit(actor, 'product.update', 'product', value._id, { changedFields: Object.keys(input) }); return value; } catch (e) { return duplicateConflict(e); }
 }
 export async function deleteProduct(id: string, actor: string) { const value = await getProduct(id); await Product.updateMany({}, { $pull: { relatedProductIds: value._id } }); await value.deleteOne(); await audit(actor, 'product.delete', 'product', value._id); }

@@ -7,7 +7,7 @@ const adminAuditLogSchema = new Schema({
   entityId: { type: Schema.Types.ObjectId, immutable: true },
   metadata: { type: Schema.Types.Mixed, immutable: true },
   createdAt: { type: Date, default: Date.now, immutable: true },
-}, { versionKey: false });
+});
 adminAuditLogSchema.index({ actorUserId: 1, createdAt: -1 });
 
 export type AdminAuditLogShape = InferSchemaType<typeof adminAuditLogSchema>;

@@ -9,16 +9,34 @@ const image = z.object({ id: z.string().optional(), url: z.string().trim().min(1
 const variant = z.object({ id: z.string().optional(), sku: z.string().trim().min(1).max(100), colour: z.string().trim().min(1), colourHex: z.string().trim().min(1), size: z.string().trim().min(1), stock: z.number().int().nonnegative(), image: z.string().trim().optional() }).strict();
 export const productFields = {
   slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), name: z.string().trim().min(1), brand: z.string().trim().min(1),
-  shortDescription: z.string().max(2000).optional().default(''), fullDescription: z.string().max(10000).optional().default(''), category: z.string().trim().toLowerCase().min(1),
+  shortDescription: z.string().max(2000).optional(), fullDescription: z.string().max(10000).optional(), category: z.string().trim().toLowerCase().min(1),
   subcategory: optionalText, collection: optionalText, genderCollection: z.enum(GENDER_COLLECTIONS), price: z.number().positive(), salePrice: z.number().nonnegative().optional(),
-  currency: z.string().trim().min(3).max(3).optional().default('GBP'), images: z.array(image).optional().default([]), lifestyleImages: z.array(image).optional().default([]),
-  colours: z.array(z.string()).optional(), variants: z.array(variant), availableSizes: z.array(z.string()).optional(), materials: z.array(z.string()).optional().default([]),
-  careInstructions: z.array(z.string()).optional().default([]), fitDescription: z.string().max(2000).optional().default(''), modelInformation: optionalText,
-  rating: z.number().min(0).max(5).optional().default(0), reviewCount: z.number().int().nonnegative().optional().default(0), stockStatus: z.enum(['in_stock','low_stock','out_of_stock']).optional(),
-  badges: z.array(z.enum(PRODUCT_BADGES)).optional().default([]), tryOnEligible: z.boolean().optional().default(false), sizeRecommendationEligible: z.boolean().optional().default(false),
-  sizeModelKey: optionalText, recommendationTags: z.array(z.string()).optional().default([]), relatedProductIds: z.array(objectId).optional().default([]), isPublished: z.boolean().optional().default(false),
+  currency: z.string().trim().min(3).max(3).optional(), images: z.array(image).optional(), lifestyleImages: z.array(image).optional(),
+  colours: z.array(z.string()).optional(), variants: z.array(variant), availableSizes: z.array(z.string()).optional(), materials: z.array(z.string()).optional(),
+  careInstructions: z.array(z.string()).optional(), fitDescription: z.string().max(2000).optional(), modelInformation: optionalText,
+  rating: z.number().min(0).max(5).optional(), reviewCount: z.number().int().nonnegative().optional(), stockStatus: z.enum(['in_stock','low_stock','out_of_stock']).optional(),
+  badges: z.array(z.enum(PRODUCT_BADGES)).optional(), tryOnEligible: z.boolean().optional(), sizeRecommendationEligible: z.boolean().optional(),
+  sizeModelKey: optionalText, recommendationTags: z.array(z.string()).optional(), relatedProductIds: z.array(objectId).optional(), isPublished: z.boolean().optional(),
 };
-const productCreate = z.object(productFields).strict().superRefine((v, ctx) => { if (v.salePrice !== undefined && v.salePrice >= v.price) ctx.addIssue({ code: 'custom', path: ['salePrice'], message: 'Sale price must be lower than price' }); });
+const productCreate = z.object({
+  ...productFields,
+  shortDescription: productFields.shortDescription.default(''),
+  fullDescription: productFields.fullDescription.default(''),
+  currency: productFields.currency.default('GBP'),
+  images: productFields.images.default([]),
+  lifestyleImages: productFields.lifestyleImages.default([]),
+  materials: productFields.materials.default([]),
+  careInstructions: productFields.careInstructions.default([]),
+  fitDescription: productFields.fitDescription.default(''),
+  rating: productFields.rating.default(0),
+  reviewCount: productFields.reviewCount.default(0),
+  badges: productFields.badges.default([]),
+  tryOnEligible: productFields.tryOnEligible.default(false),
+  sizeRecommendationEligible: productFields.sizeRecommendationEligible.default(false),
+  recommendationTags: productFields.recommendationTags.default([]),
+  relatedProductIds: productFields.relatedProductIds.default([]),
+  isPublished: productFields.isPublished.default(false),
+}).strict().superRefine((v, ctx) => { if (v.salePrice !== undefined && v.salePrice >= v.price) ctx.addIssue({ code: 'custom', path: ['salePrice'], message: 'Sale price must be lower than price' }); });
 const productUpdate = z.object(productFields).partial().strict();
 export type ProductInput = z.infer<typeof productCreate>;
 export type ProductUpdate = z.infer<typeof productUpdate>;

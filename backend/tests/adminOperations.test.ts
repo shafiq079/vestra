@@ -1,25 +1,25 @@
 import request from 'supertest';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../src/app';
 import { Types } from 'mongoose';
 import { MeasurementProfile, Order, Product, Review, User, WishlistItem } from '../src/models';
 import { orderFixture, productFixture, reviewFixture } from './fixtures/models';
 import { createTestUser, mintTestAccessToken } from './helpers/auth';
+import { dashboard } from '../src/services/adminService';
 
 describe('admin dashboard, users, orders and reviews', () => {
   let admin: Awaited<ReturnType<typeof createTestUser>>; let token: string;
   beforeAll(async()=>{ admin=await createTestUser({email:'operations-admin@example.com',role:'admin'}); token=mintTestAccessToken(admin); });
-  beforeEach(async()=>{ vi.useRealTimers(); await Promise.all([Order.deleteMany({}),Product.deleteMany({}),Review.deleteMany({}),WishlistItem.deleteMany({}),MeasurementProfile.deleteMany({}),User.deleteMany({_id:{$ne:admin._id}})]); });
+  beforeEach(async()=>{ await Promise.all([Order.deleteMany({}),Product.deleteMany({}),Review.deleteMany({}),WishlistItem.deleteMany({}),MeasurementProfile.deleteMany({}),User.deleteMany({_id:{$ne:admin._id}})]); });
   const auth=()=>({Authorization:`Bearer ${token}`});
 
   it('returns exact real UTC dashboard metrics and honest future-feature zeros', async()=>{
-    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-15T12:00:00Z'));
     await User.create([{email:'new@example.com',firstName:'N',lastName:'C',passwordHash:'hash',role:'customer',createdAt:new Date('2026-09-03')},{email:'old@example.com',firstName:'O',lastName:'C',passwordHash:'hash',role:'customer',createdAt:new Date('2026-08-03')}]);
     await Product.create([productFixture({slug:'published',isPublished:true,stockStatus:'low_stock'}),productFixture({slug:'draft',isPublished:false,stockStatus:'in_stock'})]);
     await Order.create([{...orderFixture({orderNumber:'VST-CURRENT-1',paymentStatus:'paid',total:150}),createdAt:new Date('2026-09-02')},{...orderFixture({orderNumber:'VST-CURRENT-2',paymentStatus:'pending',total:999}),createdAt:new Date('2026-09-04')},{...orderFixture({orderNumber:'VST-PREVIOUS',paymentStatus:'paid',total:100}),createdAt:new Date('2026-08-04')}]);
-    const response=await request(app).get('/api/admin/dashboard').set(auth());
-    expect(Object.keys(response.body).sort()).toEqual(['avgOrderValue','customers','orders','products','revenue','sizeRecUsage','vtoUsage'].sort());
-    expect(response.body).toEqual({revenue:{total:150,change:50,period:'September 2026'},orders:{total:2,change:100,period:'September 2026'},avgOrderValue:{total:150,change:50},customers:{total:2,newThisMonth:1},products:{total:2,published:1,lowStock:1},vtoUsage:{total:0,helpfulRate:0},sizeRecUsage:{total:0,successRate:0}});
+    const metrics=await dashboard(new Date('2026-09-15T12:00:00Z'));
+    expect(Object.keys(metrics).sort()).toEqual(['avgOrderValue','customers','orders','products','revenue','sizeRecUsage','vtoUsage'].sort());
+    expect(metrics).toEqual({revenue:{total:150,change:50,period:'September 2026'},orders:{total:2,change:100,period:'September 2026'},avgOrderValue:{total:150,change:50},customers:{total:2,newThisMonth:1},products:{total:2,published:1,lowStock:1},vtoUsage:{total:0,helpfulRate:0},sizeRecUsage:{total:0,successRate:0}});
   });
 
   it('handles dashboard zero denominators without non-finite JSON values',async()=>{
