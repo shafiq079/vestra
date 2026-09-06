@@ -13,11 +13,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import type { Address, DeliveryOption, Order } from '@/types';
+import { errorMessage } from '@/utils/errorMessage';
 
 const deliveryOptions: DeliveryOption[] = [
   { id: 'del1', name: 'Standard Delivery', description: '3-5 working days', price: 0, estimatedDays: '3-5 working days' },
   { id: 'del2', name: 'Express Delivery', description: '1-2 working days', price: 7.95, estimatedDays: '1-2 working days' },
-  { id: 'del3', name: 'Next Day Delivery', description: 'Order before 2pm', price: 12.95, estimatedDays: 'Next working day' },
+  { id: 'del3', name: 'Next Day Delivery', description: 'Next working day', price: 12.95, estimatedDays: 'Next working day' },
 ];
 
 export function CheckoutPage() {
@@ -26,7 +27,7 @@ export function CheckoutPage() {
   const subtotal = useCartStore((s) => s.getSubtotal());
   const discount = useCartStore((s) => s.discount);
   const promoCode = useCartStore((s) => s.promoCode);
-  const clearCart = useCartStore((s) => s.clearCart);
+  const resetLocalCart = useCartStore((s) => s.resetLocalCart);
   const user = useAuthStore((s) => s.user);
 
   const [deliveryId, setDeliveryId] = useState('del1');
@@ -54,13 +55,12 @@ export function CheckoutPage() {
         items: items.map((i) => ({ id: i.id, productId: i.productId, productName: i.product.name, productImage: i.product.images[0]?.url || '', brand: i.product.brand, colour: i.colour, size: i.size, quantity: i.quantity, price: i.price })),
         shippingAddress, deliveryOption: delivery,
         subtotal, discount, deliveryCost, total, promoCode,
-        estimatedDelivery: new Date(Date.now() + 4 * 86400000).toLocaleDateString('en-GB'),
       };
       const created = await createOrder(order);
-      clearCart();
-      navigate(`/order-confirmation/${created.id}`);
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+      resetLocalCart();
+      navigate(`/order-confirmation/${created.id}`, { state: created });
+    } catch (error) {
+      toast.error(errorMessage(error, 'Something went wrong. Please try again.'));
     } finally {
       setProcessing(false);
     }

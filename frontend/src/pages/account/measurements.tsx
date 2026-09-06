@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import type { MeasurementProfile } from '@/types';
+import { USE_MOCK_API } from '@/services/apiClient';
+import { updateMeasurementProfile } from '@/services/profileService';
 
 export function AccountMeasurementsPage() {
   const user = useAuthStore((s) => s.user);
@@ -25,7 +27,8 @@ export function AccountMeasurementsPage() {
     unitSystem: existing?.unitSystem || 'metric',
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  const replaceUser = useAuthStore((s) => s.replaceUser);
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const profile: MeasurementProfile = {
       id: existing?.id || `mp${Date.now()}`,
@@ -41,7 +44,12 @@ export function AccountMeasurementsPage() {
       unitSystem: form.unitSystem as 'metric' | 'imperial',
       lastUpdated: new Date().toISOString(),
     };
-    updateUser({ measurementProfile: profile });
+    if (USE_MOCK_API) await updateUser({ measurementProfile: profile });
+    else {
+      const { id: _id, userId: _userId, lastUpdated: _lastUpdated, ...payload } = profile;
+      const saved = await updateMeasurementProfile(payload);
+      if (user) replaceUser({ ...user, measurementProfile: saved });
+    }
     toast.success('Measurements saved. Your size recommendations will be more accurate.');
   };
 

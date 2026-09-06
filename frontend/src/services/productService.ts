@@ -1,7 +1,19 @@
 import { USE_MOCK_API, apiClient } from './apiClient';
-import type { Product, PaginatedResult, FilterState } from '../types';
+import type { ApiError, Product, PaginatedResult, FilterState } from '../types';
 import { mockRequest } from '../mocks/mockDatabase';
 import * as repo from '../mocks/productRepository';
+
+const isNotFound = (error: unknown) => ['NOT_FOUND', 'HTTP_404'].includes((error as ApiError)?.code);
+
+export async function getFacetProducts(context?: Pick<FilterState, 'genderCollection' | 'onSale'>): Promise<Product[]> {
+  if (USE_MOCK_API) {
+    let products = repo.getProducts().filter((product) => product.isPublished);
+    if (context?.genderCollection) products = products.filter((product) => product.genderCollection === context.genderCollection);
+    if (context?.onSale) products = products.filter((product) => product.salePrice !== undefined && product.salePrice < product.price);
+    return mockRequest(products);
+  }
+  return (await apiClient.get<Product[]>('/products', { params: context })).data;
+}
 
 export async function getProducts(filters?: FilterState, page = 1, pageSize = 12): Promise<PaginatedResult<Product>> {
   if (USE_MOCK_API) {
@@ -53,8 +65,8 @@ export async function getProduct(slug: string): Promise<Product | null> {
     await new Promise((r) => setTimeout(r, 300));
     return repo.getProductBySlug(slug) || null;
   }
-  const response = await apiClient.get(`/products/${slug}`);
-  return response.data;
+  try { return (await apiClient.get<Product>(`/products/${slug}`)).data; }
+  catch (error) { if (isNotFound(error)) return null; throw error; }
 }
 
 export async function getFeatured(): Promise<Product[]> {
@@ -134,7 +146,7 @@ export async function search(query: string): Promise<Product[]> {
     );
     return mockRequest(products);
   }
-  const response = await apiClient.get(`/products/search?q=${query}`);
+  const response = await apiClient.get('/products/search', { params: { q: query } });
   return response.data;
 }
 

@@ -19,6 +19,55 @@ export async function getAdminReviews() {
 import * as productRepo from '../mocks/productRepository';
 import * as categoryRepo from '../mocks/categoryRepository';
 import type { AdminDashboardMetrics, Product, Category } from '../types';
+import type { Order } from '../types';
+
+export interface DashboardDetails {
+  sales: { month: string; revenue: number }[];
+  topProducts: { productId: string; productName: string; unitsSold: number; revenue: number }[];
+  recentOrders: { id: string; orderNumber: string; customer: string; date: string; status: string; total: number }[];
+  lowStockVariants: { sku: string; productName: string; colour: string; size: string; stock: number }[];
+  systemIssues: { id: string; severity: 'error' | 'warning' | 'info'; message: string; time: string }[];
+}
+export interface CsvImportResult {
+  totalRows: number;
+  importedCount: number;
+  errorCount: number;
+  imported: Product[];
+  errors: { row: number; errors: string[] }[];
+}
+
+export async function getDashboardDetails(): Promise<DashboardDetails> {
+  if (USE_MOCK_API) return { sales: mockSalesData, topProducts: mockTopProducts, recentOrders: mockRecentOrders, lowStockVariants: mockLowStockVariants, systemIssues: mockSystemIssues as DashboardDetails['systemIssues'] };
+  const [orders, products] = await Promise.all([getAdminOrders() as Promise<Order[]>, getAdminInventory()]);
+  const byProduct = new Map<string, { productName: string; unitsSold: number; revenue: number }>();
+  const paidOrders = orders.filter((item) => item.paymentStatus === 'paid');
+  for (const order of paidOrders) for (const item of order.items) {
+    const current = byProduct.get(item.productId) ?? { productName: item.productName, unitsSold: 0, revenue: 0 };
+    current.unitsSold += item.quantity; current.revenue += item.price * item.quantity; byProduct.set(item.productId, current);
+  }
+  const now = new Date();
+  const sales = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + index, 1));
+    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`;
+    const revenue = paidOrders.reduce((total, order) => {
+      const created = new Date(order.createdAt);
+      return `${created.getUTCFullYear()}-${created.getUTCMonth()}` === key ? total + order.total : total;
+    }, 0);
+    return { month: new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' }).format(date), revenue: Number(revenue.toFixed(2)) };
+  });
+  return {
+    sales,
+    topProducts: [...byProduct].map(([productId, value]) => ({ productId, ...value })).sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5),
+    recentOrders: orders.slice(0, 5).map((order) => ({ id: order.id, orderNumber: order.orderNumber, customer: `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`, date: order.createdAt, status: order.status, total: order.total })),
+    lowStockVariants: products.flatMap((product) => product.variants.filter((variant) => variant.stock <= 5).map((variant) => ({ sku: variant.sku, productName: product.name, colour: variant.colour, size: variant.size, stock: variant.stock }))).slice(0, 5),
+    systemIssues: [],
+  };
+}
+
+export async function importAdminProducts(csv: string): Promise<CsvImportResult> {
+  if (USE_MOCK_API) throw new Error('Mock CSV import is handled locally.');
+  return (await apiClient.post<CsvImportResult>('/admin/products/import', csv, { headers: { 'Content-Type': 'text/csv' } })).data;
+}
 
 export async function getDashboardMetrics(): Promise<AdminDashboardMetrics> {
   if (USE_MOCK_API) return mockRequest(mockDashboardMetrics);

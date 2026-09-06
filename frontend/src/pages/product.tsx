@@ -1,9 +1,9 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Heart, ShoppingBag, Ruler, Scan, Star, ChevronLeft, ChevronRight, Truck, RefreshCw, Shield } from 'lucide-react';
 import { getProduct, getRelated } from '@/services/productService';
-import { getReviewsByProductId } from '@/mocks/reviews';
+import { getProductReviews } from '@/services/reviewService';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { useUIStore } from '@/store/uiStore';
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatPrice, getDiscountPercent } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { USE_MOCK_API } from '@/services/apiClient';
 
 export function ProductPage() {
   const { slug } = useParams();
@@ -32,23 +33,27 @@ export function ProductPage() {
   const hasWishlist = useWishlistStore((s) => product ? s.hasItem(product.id) : false);
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);
 
-  const reviews = useMemo(() => product ? getReviewsByProductId(product.id) : [], [product]);
+  const { data: reviews = [] } = useQuery({ queryKey: ['product-reviews', product?.id], queryFn: () => getProductReviews(product!.id), enabled: !!product });
 
   if (isLoading) return <div className="container-vestra py-20 text-center text-muted-foreground">Loading product...</div>;
   if (!product) return <div className="container-vestra py-20 text-center"><p>Product not found.</p><Button asChild className="mt-4"><Link to="/shop">Back to shop</Link></Button></div>;
 
   const price = product.salePrice ?? product.price;
   const hasSale = product.salePrice !== undefined && product.salePrice < product.price;
+  const reviewTabCount = USE_MOCK_API ? reviews.length : product.reviewCount;
   const colour = selectedColour || product.colours[0];
   const availableSizesForColour = product.variants.filter((v) => v.colour === colour).map((v) => v.size);
   const size = selectedSize || availableSizesForColour[0] || product.availableSizes[0];
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     const variant = product.variants.find((v) => v.colour === colour && v.size === size);
     if (!variant) { toast.error('Selected variant is not available'); return; }
-    addItem(product, variant.id, colour, size, quantity);
-    toast.success(`${product.name} added to bag`);
-    setCartDrawerOpen(true);
+    try { await addItem(product, variant.id, colour, size, quantity); toast.success(`${product.name} added to bag`); setCartDrawerOpen(true); }
+    catch (error) { toast.error((error as Error).message || 'Unable to add this item'); }
+  };
+  const handleWishlist = async () => {
+    try { await toggleWishlist(product); toast.success(hasWishlist ? 'Removed from wishlist' : 'Added to wishlist'); }
+    catch (error) { toast.error((error as Error).message || 'Unable to update your wishlist'); }
   };
 
   return (
@@ -134,7 +139,7 @@ export function ProductPage() {
           {/* Actions */}
           <div className="flex gap-3 mt-8">
             <Button size="lg" className="flex-1" onClick={handleAddToCart}><ShoppingBag className="h-5 w-5" /> Add to Bag</Button>
-            <Button size="lg" variant="outline" onClick={() => { toggleWishlist(product); toast.success(hasWishlist ? 'Removed from wishlist' : 'Added to wishlist'); }}><Heart className={cn('h-5 w-5', hasWishlist && 'fill-destructive text-destructive')} /></Button>
+            <Button size="lg" variant="outline" onClick={() => void handleWishlist()}><Heart className={cn('h-5 w-5', hasWishlist && 'fill-destructive text-destructive')} /></Button>
           </div>
 
           {product.tryOnEligible && (
@@ -156,7 +161,7 @@ export function ProductPage() {
           <TabsList className="w-full justify-start border-b border-border rounded-none">
             <TabsTrigger value="description">Description</TabsTrigger>
             <TabsTrigger value="details">Details & Care</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews ({reviewTabCount})</TabsTrigger>
           </TabsList>
           <TabsContent value="description" className="py-6 max-w-3xl">
             <p className="text-muted-foreground leading-relaxed">{product.fullDescription}</p>
@@ -171,7 +176,9 @@ export function ProductPage() {
           </TabsContent>
           <TabsContent value="reviews" className="py-6">
             <div className="space-y-6">
-              {reviews.length === 0 ? <p className="text-muted-foreground">No reviews yet.</p> : reviews.map((r) => (
+              {!USE_MOCK_API ? (
+                <p className="text-muted-foreground">{product.reviewCount > 0 ? 'Detailed customer reviews are not currently available through the public API.' : 'No reviews yet.'}</p>
+              ) : reviews.length === 0 ? <p className="text-muted-foreground">No reviews yet.</p> : reviews.map((r) => (
                 <div key={r.id} className="border-b border-border pb-6">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="flex">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={cn('h-4 w-4', i < r.rating ? 'fill-foreground' : 'text-muted-foreground')} />)}</div>

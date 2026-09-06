@@ -1,14 +1,14 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getByCollection } from '@/services/productService';
-import { getCollectionBySlug } from '@/mocks/categories';
+import { getCollection } from '@/services/categoryService';
 import { ProductCard } from '@/components/product/product-card';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function CollectionPage() {
   const { slug } = useParams();
-  const collection = slug ? getCollectionBySlug(slug) : null;
+  const { data: collection } = useQuery({ queryKey: ['collection-details', slug], queryFn: () => getCollection(slug!), enabled: !!slug });
   const { data: products, isLoading } = useQuery({
     queryKey: ['collection', slug],
     queryFn: () => getByCollection(slug!),

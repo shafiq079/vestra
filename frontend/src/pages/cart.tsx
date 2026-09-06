@@ -3,7 +3,6 @@ import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag, X } from 'lucide-rea
 import { useCartStore } from '@/store/cartStore';
 import { applyPromoCode as validatePromoCode } from '@/services/cartService';
 import { formatPrice } from '@/utils/formatters';
-import { brand } from '@/config/brand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
@@ -21,20 +20,23 @@ export function CartPage() {
   const removePromo = useCartStore((s) => s.removePromoCode);
   const [promoInput, setPromoInput] = useState('');
 
-  const deliveryCost = subtotal >= brand.deliveryThreshold || subtotal === 0 ? 0 : 4.95;
+  const deliveryCost = 0;
   const total = Math.max(0, subtotal - discount + deliveryCost);
 
   const handleApplyPromo = async () => {
     if (!promoInput.trim()) return;
-    const result = await validatePromoCode(promoInput);
+    const result = await validatePromoCode(promoInput, subtotal);
     if (result.valid) {
-      const discountAmount = (subtotal * result.discount) / 100;
-      applyPromo(promoInput.toUpperCase(), discountAmount);
+      applyPromo(promoInput.toUpperCase(), result.discount);
       toast.success('Promo code applied');
       setPromoInput('');
     } else {
       toast.error(result.message);
     }
+  };
+  const mutateCart = async (operation: () => Promise<void>, success?: string) => {
+    try { await operation(); if (success) toast.info(success); }
+    catch (error) { toast.error((error as Error).message || 'Unable to update your bag'); }
   };
 
   if (items.length === 0) {
@@ -67,11 +69,11 @@ export function CartPage() {
                 </div>
                 <div className="flex items-center justify-between mt-4">
                   <div className="flex items-center border border-border rounded-lg">
-                    <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="px-3 py-1.5 hover:bg-muted" aria-label="Decrease"><Minus className="h-3 w-3" /></button>
+                    <button onClick={() => void mutateCart(() => updateQuantity(item.id, item.quantity - 1))} className="px-3 py-1.5 hover:bg-muted" aria-label="Decrease"><Minus className="h-3 w-3" /></button>
                     <span className="px-3 text-sm font-medium">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-3 py-1.5 hover:bg-muted" aria-label="Increase"><Plus className="h-3 w-3" /></button>
+                    <button onClick={() => void mutateCart(() => updateQuantity(item.id, item.quantity + 1))} className="px-3 py-1.5 hover:bg-muted" aria-label="Increase"><Plus className="h-3 w-3" /></button>
                   </div>
-                  <button onClick={() => removeItem(item.id)} className="text-sm text-muted-foreground hover:text-destructive flex items-center gap-1"><Trash2 className="h-4 w-4" /> Remove</button>
+                  <button onClick={() => void mutateCart(() => removeItem(item.id), 'Item removed')} className="text-sm text-muted-foreground hover:text-destructive flex items-center gap-1"><Trash2 className="h-4 w-4" /> Remove</button>
                 </div>
               </div>
             </div>
@@ -89,7 +91,7 @@ export function CartPage() {
             </div>
             {/* Promo code */}
             {promoCode ? (
-              <div className="flex items-center justify-between bg-muted px-3 py-2 rounded-lg"><span className="text-sm flex items-center gap-1"><Tag className="h-3 w-3" /> {promoCode}</span><button onClick={() => { removePromo(); toast.info('Promo code removed'); }}><X className="h-4 w-4 text-muted-foreground" /></button></div>
+              <div className="flex items-center justify-between bg-muted px-3 py-2 rounded-lg"><span className="text-sm flex items-center gap-1"><Tag className="h-3 w-3" /> {promoCode}</span><button onClick={() => void mutateCart(removePromo, 'Promo code removed')}><X className="h-4 w-4 text-muted-foreground" /></button></div>
             ) : (
               <div className="flex gap-2">
                 <Input placeholder="Promo code" value={promoInput} onChange={(e) => setPromoInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()} />

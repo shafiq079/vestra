@@ -1,10 +1,11 @@
-import { USE_MOCK_API, apiClient } from './apiClient';
+// Phase 10 has not shipped: Virtual Try-On intentionally remains a demo provider.
+const USE_DEMO_VTO = true;
 import { mockRequest } from '../mocks/mockDatabase';
 import { getProductById, getProducts } from '../mocks/productRepository';
 import type { Product, VirtualTryOnRequest, VirtualTryOnResult } from '../types';
 
 export async function getEligibleProducts(): Promise<Product[]> {
-  if (USE_MOCK_API) {
+  if (USE_DEMO_VTO) {
     const products = getProducts().filter(
       (product) => product.isPublished && product.tryOnEligible
     );
@@ -12,27 +13,21 @@ export async function getEligibleProducts(): Promise<Product[]> {
     return mockRequest(products);
   }
 
-  const response = await apiClient.get('/virtual-try-on/eligible');
-  return response.data;
+  return [];
 }
 
 export async function getProductForTryOn(productId: string): Promise<Product | null> {
-  if (USE_MOCK_API) {
+  if (USE_DEMO_VTO) {
     await new Promise((r) => setTimeout(r, 200));
     const product = getProductById(productId);
     if (!product || !product.isPublished || !product.tryOnEligible) return null;
     return product;
   }
-  try {
-    const response = await apiClient.get(`/virtual-try-on/product/${productId}`);
-    return response.data as Product;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 export async function submitTryOn(request: VirtualTryOnRequest): Promise<VirtualTryOnResult> {
-  if (USE_MOCK_API) {
+  if (USE_DEMO_VTO) {
     await new Promise((r) => setTimeout(r, 3500));
     const product = getProductById(request.productId);
     return {
@@ -46,17 +41,7 @@ export async function submitTryOn(request: VirtualTryOnRequest): Promise<Virtual
       isDemo: true,
     };
   }
-  const formData = new FormData();
-  formData.append('productId', request.productId);
-  formData.append('colour', request.variantColour);
-  formData.append('consentGiven', String(request.consentGiven));
-  if (request.imageFile) {
-    formData.append('image', request.imageFile);
-  }
-  const response = await apiClient.post('/virtual-try-on', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return response.data;
+  throw new Error('Virtual Try-On is not available.');
 }
 
 export const vtoProcessingMessages = [

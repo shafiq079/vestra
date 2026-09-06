@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
-import { mockProducts } from '@/mocks/products';
+import { search } from '@/services/productService';
+import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/utils/formatters';
 
 export function SearchOverlay() {
@@ -11,11 +12,7 @@ export function SearchOverlay() {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
 
-  const results = useMemo(() => {
-    if (query.trim().length < 2) return [];
-    const q = query.toLowerCase();
-    return mockProducts.filter((p) => p.isPublished && (p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || p.shortDescription.toLowerCase().includes(q))).slice(0, 6);
-  }, [query]);
+  const { data: results = [] } = useQuery({ queryKey: ['overlay-search', query], queryFn: () => search(query), enabled: open && query.trim().length >= 2 });
 
   if (!open) return null;
 
