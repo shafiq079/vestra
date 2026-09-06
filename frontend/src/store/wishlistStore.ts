@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Product, WishlistItem } from '../types';
-import { USE_MOCK_API } from '../services/apiClient';
+import { AUTH_TOKEN_KEY, USE_MOCK_API } from '../services/apiClient';
 import * as service from '../services/wishlistService';
 
 interface WishlistState {
@@ -20,7 +20,10 @@ export const useWishlistStore = create<WishlistState>()(persist((set, get) => ({
   addItem: async (product) => { if (!get().hasItem(product.id)) await get().toggleItem(product); },
   removeItem: async (id) => { const item = get().items.find((entry) => entry.productId === id); if (item) await get().toggleItem(item.product); },
   toggleItem: async (product) => {
-    if (!USE_MOCK_API) { const products = await service.toggleWishlist(product.id); if (products) set({ items: itemsFrom(products) }); return; }
+    if (!USE_MOCK_API) {
+      if (!localStorage.getItem(AUTH_TOKEN_KEY)) throw new Error('Sign in to save items to your wishlist.');
+      const products = await service.toggleWishlist(product.id); if (products) set({ items: itemsFrom(products) }); return;
+    }
     set((state) => state.items.some((item) => item.productId === product.id)
       ? { items: state.items.filter((item) => item.productId !== product.id) }
       : { items: [...state.items, { id: product.id, productId: product.id, product, addedAt: new Date().toISOString() }] });

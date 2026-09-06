@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { createAdminProduct, importAdminProducts } from '@/services/adminService';
+import { createAdminProduct, importAdminProducts, type CsvImportResult } from '@/services/adminService';
 import { USE_MOCK_API } from '@/services/apiClient';
 import { slugify } from '@/utils/formatters';
 import type { Product } from '@/types';
@@ -103,14 +103,14 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState('');
   const [csvText, setCsvText] = useState('');
+  const [serverResult, setServerResult] = useState<CsvImportResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   const importMutation = useMutation({
     mutationFn: async (rows: ParsedRow[]) => {
       if (!USE_MOCK_API) {
-        const result = await importAdminProducts(csvText);
-        return result.imported as Product[];
+        return importAdminProducts(csvText);
       }
       const results: Product[] = [];
       for (const row of rows) {
@@ -119,14 +119,15 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
           results.push(product);
         }
       }
-      return results;
+      return { totalRows: rows.length, importedCount: results.length, errorCount: rows.length - results.length, imported: results, errors: [] } satisfies CsvImportResult;
     },
-    onSuccess: (imported) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-inventory'] });
-      toast.success(`${imported.length} product${imported.length !== 1 ? 's' : ''} imported`);
-      handleClose();
+      toast.success(`${result.importedCount} product${result.importedCount !== 1 ? 's' : ''} imported`);
+      if (!USE_MOCK_API && result.errorCount > 0) setServerResult(result);
+      else handleClose();
     },
     onError: (err: Error) => toast.error(err.message || 'Import failed'),
   });
@@ -135,6 +136,7 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
     setParsedRows([]);
     setFileName('');
     setCsvText('');
+    setServerResult(null);
     onOpenChange(false);
   };
 
@@ -144,9 +146,11 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
     reader.onload = () => {
       const text = reader.result as string;
       setCsvText(text);
-      const rows = parseCsv(text);
-      const validated = rows.map((r, i) => validateRow(r, i + 2));
-      setParsedRows(validated);
+      setServerResult(null);
+      if (USE_MOCK_API) {
+        const rows = parseCsv(text);
+        setParsedRows(rows.map((r, i) => validateRow(r, i + 2)));
+      } else setParsedRows([]);
     };
     reader.readAsText(file);
   };
@@ -230,12 +234,30 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
               )}
             </div>
           )}
+          {!USE_MOCK_API && csvText && !serverResult && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><FileText className="h-4 w-4" /> Ready for secure server validation</div>
+          )}
+          {serverResult && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-4 text-sm">
+                <span className="flex items-center gap-1.5"><FileText className="h-4 w-4" /> {serverResult.totalRows} total rows</span>
+                <span className="flex items-center gap-1.5 text-green-600"><CheckCircle className="h-4 w-4" /> {serverResult.importedCount} imported</span>
+                <span className="flex items-center gap-1.5 text-destructive"><AlertCircle className="h-4 w-4" /> {serverResult.errorCount} with errors</span>
+              </div>
+              {serverResult.errors.map((error) => (
+                <div key={error.row} className="text-xs p-2 bg-destructive/5 border border-destructive/20 rounded">
+                  <span className="font-medium">Row {error.row}:</span>
+                  <span className="text-destructive ml-2">{error.errors.join(', ')}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button disabled={validRows.length === 0 || importMutation.isPending} onClick={() => importMutation.mutate(validRows)}>
-            {importMutation.isPending ? 'Importing...' : `Import ${validRows.length} Product${validRows.length !== 1 ? 's' : ''}`}
+          <Button disabled={(USE_MOCK_API ? validRows.length === 0 : !csvText) || importMutation.isPending} onClick={() => importMutation.mutate(validRows)}>
+            {importMutation.isPending ? 'Importing...' : USE_MOCK_API ? `Import ${validRows.length} Product${validRows.length !== 1 ? 's' : ''}` : 'Import CSV'}
           </Button>
         </DialogFooter>
       </DialogContent>

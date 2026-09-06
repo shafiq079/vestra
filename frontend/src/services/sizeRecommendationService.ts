@@ -1,4 +1,5 @@
-import { USE_MOCK_API, apiClient } from './apiClient';
+import { USE_MOCK_API } from './apiClient';
+// Phase 13 has not shipped: real mode reports the feature as unavailable.
 import type { SizeRecommendationFormSchema, SizeRecommendationRequest, SizeRecommendationResult } from '../types';
 
 export async function getSizeFormSchema(productId: string, sizeModelKey: string): Promise<SizeRecommendationFormSchema> {
@@ -29,8 +30,7 @@ export async function getSizeFormSchema(productId: string, sizeModelKey: string)
       ],
     };
   }
-  const response = await apiClient.get(`/size-recommendation/schema/${productId}`);
-  return response.data;
+  throw new Error('Size recommendation is not available.');
 }
 
 export async function submitSizeRecommendation(request: SizeRecommendationRequest): Promise<SizeRecommendationResult> {
@@ -76,8 +76,7 @@ export async function submitSizeRecommendation(request: SizeRecommendationReques
       disclaimer: 'This is a recommendation based on your measurements and the product\'s fit model, not a guarantee of fit. Fit preferences vary by individual. Please use the size guide for detailed measurements.',
     };
   }
-  const response = await apiClient.post('/size-recommendation', request);
-  return response.data;
+  throw new Error('Size recommendation is not available.');
 }
 
 function sizeUp(size: string): string {

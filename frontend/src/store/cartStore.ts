@@ -6,6 +6,8 @@ import * as service from '../services/cartService';
 
 interface CartState {
   items: CartItem[]; promoCode?: string; discount: number; isLoading: boolean;
+  replaceCart: (cart: Cart) => void;
+  resetLocalCart: () => void;
   hydrate: () => Promise<void>;
   addItem: (product: Product, variantId: string, colour: string, size: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
@@ -20,6 +22,8 @@ const cartState = (cart: Cart) => ({ items: cart.items, promoCode: cart.promoCod
 
 export const useCartStore = create<CartState>()(persist((set, get) => ({
   items: [], promoCode: undefined, discount: 0, isLoading: false,
+  replaceCart: (cart) => set(cartState(cart)),
+  resetLocalCart: () => set({ items: [], promoCode: undefined, discount: 0 }),
   hydrate: async () => { if (USE_MOCK_API) return; set({ isLoading: true }); try { set(cartState(await service.getCart())); } finally { set({ isLoading: false }); } },
   addItem: async (product, variantId, colour, size, quantity) => {
     if (!USE_MOCK_API) { const cart = await service.addToCart(product, variantId, colour, size, quantity); if (cart) set(cartState(cart)); return; }

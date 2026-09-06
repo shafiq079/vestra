@@ -2,6 +2,7 @@ import { useParams, Link, useLocation } from 'react-router-dom';
 import { Check, Package, Truck, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Order } from '@/types';
+import { USE_MOCK_API } from '@/services/apiClient';
 
 export function OrderConfirmationPage() {
   const { orderId } = useParams();
@@ -13,7 +14,7 @@ export function OrderConfirmationPage() {
         <Check className="h-8 w-8 text-success" />
       </div>
       <h1 className="font-display text-3xl lg:text-4xl mt-6">Order Confirmed</h1>
-      <p className="text-muted-foreground mt-3">Thank you for your purchase. We've sent a confirmation email with your order details.</p>
+      <p className="text-muted-foreground mt-3">{USE_MOCK_API ? "Thank you for your purchase. We've sent a confirmation email with your order details." : 'Thank you for your purchase. Your order was successfully saved.'}</p>
       <div className="bg-muted rounded-xl p-6 mt-8 text-left">
         <div className="flex justify-between items-center mb-4">
           <div><p className="text-sm text-muted-foreground">Order Number</p><p className="font-semibold text-lg">{order?.orderNumber ?? 'Confirmation saved'}</p></div>

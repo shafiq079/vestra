@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { USE_MOCK_API } from '@/services/apiClient';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -16,6 +17,11 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleDemo = async (role: 'customer' | 'admin') => {
+    if (!USE_MOCK_API) {
+      setEmail(role === 'admin' ? 'admin@vestra.co.uk' : 'emma.thompson@example.co.uk');
+      toast.info('Demo email filled in. Enter the configured demo password to continue.');
+      return;
+    }
     try { await loginDemo(role); navigate(role === 'admin' ? '/admin' : '/account'); }
     catch (error) { toast.error((error as Error).message || 'Demo sign-in is unavailable'); }
   };

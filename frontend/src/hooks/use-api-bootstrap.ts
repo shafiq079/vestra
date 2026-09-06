@@ -9,6 +9,8 @@ export function useApiBootstrap() {
       await useAuthStore.getState().hydrate();
       await useCartStore.getState().hydrate();
       if (useAuthStore.getState().isAuthenticated) await useWishlistStore.getState().hydrate();
-    })();
+    })().catch((error: unknown) => {
+      console.warn('Initial API hydration could not be completed.', error);
+    });
   }, []);
 }

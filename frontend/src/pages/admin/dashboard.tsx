@@ -22,6 +22,7 @@ export function AdminDashboardPage() {
     { label: 'VTO Usage', value: metrics.vtoUsage.total.toLocaleString(), sub: `${metrics.vtoUsage.helpfulRate}% helpful rate`, icon: Sparkles },
     { label: 'Size Rec Usage', value: metrics.sizeRecUsage.total.toLocaleString(), sub: `${metrics.sizeRecUsage.successRate}% success rate`, icon: Ruler },
   ];
+  const maxRevenue = Math.max(...(details?.sales.map((item) => item.revenue) ?? [0]), 1);
 
   return (
     <div>
@@ -52,12 +53,11 @@ export function AdminDashboardPage() {
         <Card className="p-6">
           <h2 className="font-semibold mb-4">Revenue (Last 6 Months)</h2>
           <div className="space-y-3">
-            {details?.sales.length === 0 && <p className="text-sm text-muted-foreground">Historical monthly reporting is not available from the current API.</p>}
             {(details?.sales ?? []).map((d) => (
               <div key={d.month} className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground w-8">{d.month}</span>
                 <div className="flex-1 h-6 bg-muted rounded relative overflow-hidden">
-                  <div className="h-full bg-foreground rounded" style={{ width: `${(d.revenue / 184250) * 100}%` }} />
+                  <div className="h-full bg-foreground rounded" style={{ width: `${(d.revenue / maxRevenue) * 100}%` }} />
                 </div>
                 <span className="text-xs font-medium w-16 text-right">{formatPrice(d.revenue)}</span>
               </div>

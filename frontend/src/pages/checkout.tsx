@@ -26,7 +26,7 @@ export function CheckoutPage() {
   const subtotal = useCartStore((s) => s.getSubtotal());
   const discount = useCartStore((s) => s.discount);
   const promoCode = useCartStore((s) => s.promoCode);
-  const clearCart = useCartStore((s) => s.clearCart);
+  const resetLocalCart = useCartStore((s) => s.resetLocalCart);
   const user = useAuthStore((s) => s.user);
 
   const [deliveryId, setDeliveryId] = useState('del1');
@@ -56,7 +56,7 @@ export function CheckoutPage() {
         subtotal, discount, deliveryCost, total, promoCode,
       };
       const created = await createOrder(order);
-      await clearCart();
+      resetLocalCart();
       navigate(`/order-confirmation/${created.id}`, { state: created });
     } catch {
       toast.error('Something went wrong. Please try again.');

@@ -1,4 +1,4 @@
-import { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY, USE_MOCK_API, apiClient } from './apiClient';
+import { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY, USE_MOCK_API, apiClient, clearAuthTokens } from './apiClient';
 import { demoAdmin, demoCustomer, mockUsers, getUserById } from '../mocks/users';
 import type { User } from '../types';
 
@@ -62,10 +62,12 @@ export async function forgotPassword(email: string): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
-  if (!USE_MOCK_API) {
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (refreshToken) await apiClient.post('/auth/logout', { refreshToken });
+  try {
+    if (!USE_MOCK_API) {
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+      if (refreshToken) await apiClient.post('/auth/logout', { refreshToken });
+    }
+  } finally {
+    clearAuthTokens();
   }
-  localStorage.removeItem(AUTH_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }

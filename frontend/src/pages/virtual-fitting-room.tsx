@@ -212,7 +212,7 @@ export function VirtualFittingRoomPage() {
     }
   };
 
-  const handleAddToBag = () => {
+  const handleAddToBag = async () => {
     if (!selectedProduct) return;
     const colour = selectedColour || selectedProduct.colours[0];
     const size = selectedProduct.availableSizes[0];
@@ -221,9 +221,8 @@ export function VirtualFittingRoomPage() {
       toast.error('Please choose a size on the product page first');
       return;
     }
-    addItem(selectedProduct, variant.id, colour, size, 1);
-    toast.success(`${selectedProduct.name} added to bag`);
-    setCartDrawerOpen(true);
+    try { await addItem(selectedProduct, variant.id, colour, size, 1); toast.success(`${selectedProduct.name} added to bag`); setCartDrawerOpen(true); }
+    catch (error) { toast.error((error as Error).message || 'Unable to add this item'); }
   };
 
   const handleFeedback = (value: 'helpful' | 'not_helpful') => {

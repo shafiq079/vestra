@@ -1,4 +1,4 @@
-import { USE_MOCK_API, apiClient } from './apiClient';
+import { AUTH_TOKEN_KEY, USE_MOCK_API, apiClient, guestCartHeaders } from './apiClient';
 import { mockOrders, getOrdersByUserId, getOrderById } from '../mocks/orders';
 import { mockRequest } from '../mocks/mockDatabase';
 import type { Order } from '../types';
@@ -45,6 +45,8 @@ export async function createOrder(orderData: Partial<Order>): Promise<Order> {
     };
     return newOrder;
   }
-  const response = await apiClient.post('/orders', orderData);
+  const response = await apiClient.post('/orders', orderData, {
+    headers: localStorage.getItem(AUTH_TOKEN_KEY) ? undefined : guestCartHeaders(),
+  });
   return response.data;
 }

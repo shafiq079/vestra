@@ -49,6 +49,10 @@ export function ProductPage() {
     try { await addItem(product, variant.id, colour, size, quantity); toast.success(`${product.name} added to bag`); setCartDrawerOpen(true); }
     catch (error) { toast.error((error as Error).message || 'Unable to add this item'); }
   };
+  const handleWishlist = async () => {
+    try { await toggleWishlist(product); toast.success(hasWishlist ? 'Removed from wishlist' : 'Added to wishlist'); }
+    catch (error) { toast.error((error as Error).message || 'Unable to update your wishlist'); }
+  };
 
   return (
     <div className="container-vestra py-4 lg:py-8">
@@ -133,7 +137,7 @@ export function ProductPage() {
           {/* Actions */}
           <div className="flex gap-3 mt-8">
             <Button size="lg" className="flex-1" onClick={handleAddToCart}><ShoppingBag className="h-5 w-5" /> Add to Bag</Button>
-            <Button size="lg" variant="outline" onClick={() => { toggleWishlist(product); toast.success(hasWishlist ? 'Removed from wishlist' : 'Added to wishlist'); }}><Heart className={cn('h-5 w-5', hasWishlist && 'fill-destructive text-destructive')} /></Button>
+            <Button size="lg" variant="outline" onClick={() => void handleWishlist()}><Heart className={cn('h-5 w-5', hasWishlist && 'fill-destructive text-destructive')} /></Button>
           </div>
 
           {product.tryOnEligible && (
