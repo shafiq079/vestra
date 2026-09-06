@@ -1,5 +1,16 @@
 # Phase 2 schema mapping
 
+## Phase 9 derived recommendation responses
+
+Recommendation groups are calculated from the existing Product, Order, and WishlistItem
+collections and are never persisted as a separate recommendation database. Responses contain
+only Product DTOs plus deterministic 0–1 scores and truthful explanations. Personal signals are
+restricted to the authenticated user's wishlist, successful purchases, and purchased-size
+snapshots; order popularity and co-occurrence are aggregate. There is no browsing-history
+persistence, measurement-to-size inference, ML model, or external recommendation provider.
+Wishlist and purchase affinity are calculated separately so wishlist-labelled results never use
+purchase history as a substitute when the user's wishlist is empty.
+
 ## Phase 7 persistence notes
 
 Admin catalogue and inventory endpoints mutate the existing `Product` and `Category` models;
