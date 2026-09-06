@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import type { Address } from '@/types';
+import { USE_MOCK_API } from '@/services/apiClient';
+import * as profileService from '@/services/profileService';
 
 export function AccountAddressesPage() {
   const user = useAuthStore((s) => s.user);
@@ -16,22 +18,26 @@ export function AccountAddressesPage() {
 
   const addresses = user?.addresses || [];
 
-  const handleAdd = (e: React.FormEvent) => {
+  const replaceUser = useAuthStore((s) => s.replaceUser);
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     const newAddr: Address = { id: `addr${Date.now()}`, ...form, isDefault: addresses.length === 0 };
-    updateUser({ addresses: [...addresses, newAddr] });
+    if (USE_MOCK_API) await updateUser({ addresses: [...addresses, newAddr] });
+    else replaceUser(await profileService.addAddress({ ...form, isDefault: addresses.length === 0 }));
     toast.success('Address saved');
     setOpen(false);
     setForm({ label: '', firstName: '', lastName: '', line1: '', line2: '', city: '', county: '', postcode: '', country: 'United Kingdom' });
   };
 
-  const handleDelete = (id: string) => {
-    updateUser({ addresses: addresses.filter((a) => a.id !== id) });
+  const handleDelete = async (id: string) => {
+    if (USE_MOCK_API) await updateUser({ addresses: addresses.filter((a) => a.id !== id) });
+    else replaceUser(await profileService.deleteAddress(id));
     toast.info('Address removed');
   };
 
-  const handleSetDefault = (id: string) => {
-    updateUser({ addresses: addresses.map((a) => ({ ...a, isDefault: a.id === id })) });
+  const handleSetDefault = async (id: string) => {
+    if (USE_MOCK_API) await updateUser({ addresses: addresses.map((a) => ({ ...a, isDefault: a.id === id })) });
+    else replaceUser(await profileService.setDefaultAddress(id));
   };
 
   return (

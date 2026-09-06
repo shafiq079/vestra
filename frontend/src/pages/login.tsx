@@ -15,6 +15,11 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleDemo = async (role: 'customer' | 'admin') => {
+    try { await loginDemo(role); navigate(role === 'admin' ? '/admin' : '/account'); }
+    catch (error) { toast.error((error as Error).message || 'Demo sign-in is unavailable'); }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -45,8 +50,8 @@ export function LoginPage() {
       <div className="relative my-6"><Separator /><span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">or</span></div>
       <p className="text-sm text-muted-foreground text-center mb-3">Try the demo</p>
       <div className="grid grid-cols-2 gap-3">
-        <Button variant="outline" onClick={() => { loginDemo('customer'); navigate('/account'); }}>Demo Customer</Button>
-        <Button variant="outline" onClick={() => { loginDemo('admin'); navigate('/admin'); }}>Demo Admin</Button>
+        <Button variant="outline" onClick={() => void handleDemo('customer')}>Demo Customer</Button>
+        <Button variant="outline" onClick={() => void handleDemo('admin')}>Demo Admin</Button>
       </div>
       <p className="text-xs text-center text-muted-foreground mt-4">Demo customer: emma.thompson@example.co.uk · Demo admin: admin@vestra.co.uk</p>
     </div>

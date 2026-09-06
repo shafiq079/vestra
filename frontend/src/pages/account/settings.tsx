@@ -18,10 +18,10 @@ export function AccountSettingsPage() {
     marketingOptIn: user?.marketingOptIn ?? false,
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ firstName: form.firstName, lastName: form.lastName, marketingOptIn: form.marketingOptIn });
-    toast.success('Settings updated');
+    try { await updateUser({ firstName: form.firstName, lastName: form.lastName, marketingOptIn: form.marketingOptIn }); toast.success('Settings updated'); }
+    catch (error) { toast.error((error as Error).message || 'Unable to update settings'); }
   };
 
   return (

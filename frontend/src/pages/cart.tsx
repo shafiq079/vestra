@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
+import { USE_MOCK_API } from '@/services/apiClient';
 
 export function CartPage() {
   const items = useCartStore((s) => s.items);
@@ -28,7 +29,7 @@ export function CartPage() {
     if (!promoInput.trim()) return;
     const result = await validatePromoCode(promoInput);
     if (result.valid) {
-      const discountAmount = (subtotal * result.discount) / 100;
+      const discountAmount = USE_MOCK_API ? (subtotal * result.discount) / 100 : result.discount;
       applyPromo(promoInput.toUpperCase(), discountAmount);
       toast.success('Promo code applied');
       setPromoInput('');

@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { ProductCard } from '@/components/product/product-card';
 import { getProducts } from '@/services/productService';
-import { mockProducts } from '@/mocks/products';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -39,8 +38,8 @@ export function ShopPage() {
     queryFn: () => getProducts(filters, page, 12),
   });
 
-  const allSizes = useMemo(() => [...new Set(mockProducts.flatMap((p) => p.availableSizes))], []);
-  const allColours = useMemo(() => [...new Set(mockProducts.flatMap((p) => p.colours))].slice(0, 12), []);
+  const allSizes = useMemo(() => [...new Set(data?.items.flatMap((p) => p.availableSizes) ?? [])], [data]);
+  const allColours = useMemo(() => [...new Set(data?.items.flatMap((p) => p.colours) ?? [])].slice(0, 12), [data]);
 
   const title = gender ? (gender === 'women' ? 'Women' : 'Men') : onSaleParam ? 'Sale' : 'All Products';
 

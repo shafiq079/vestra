@@ -1,9 +1,9 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Heart, ShoppingBag, Ruler, Scan, Star, ChevronLeft, ChevronRight, Truck, RefreshCw, Shield } from 'lucide-react';
 import { getProduct, getRelated } from '@/services/productService';
-import { getReviewsByProductId } from '@/mocks/reviews';
+import { getProductReviews } from '@/services/reviewService';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { useUIStore } from '@/store/uiStore';
@@ -32,7 +32,7 @@ export function ProductPage() {
   const hasWishlist = useWishlistStore((s) => product ? s.hasItem(product.id) : false);
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);
 
-  const reviews = useMemo(() => product ? getReviewsByProductId(product.id) : [], [product]);
+  const { data: reviews = [] } = useQuery({ queryKey: ['product-reviews', product?.id], queryFn: () => getProductReviews(product!.id), enabled: !!product });
 
   if (isLoading) return <div className="container-vestra py-20 text-center text-muted-foreground">Loading product...</div>;
   if (!product) return <div className="container-vestra py-20 text-center"><p>Product not found.</p><Button asChild className="mt-4"><Link to="/shop">Back to shop</Link></Button></div>;
@@ -43,12 +43,11 @@ export function ProductPage() {
   const availableSizesForColour = product.variants.filter((v) => v.colour === colour).map((v) => v.size);
   const size = selectedSize || availableSizesForColour[0] || product.availableSizes[0];
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     const variant = product.variants.find((v) => v.colour === colour && v.size === size);
     if (!variant) { toast.error('Selected variant is not available'); return; }
-    addItem(product, variant.id, colour, size, quantity);
-    toast.success(`${product.name} added to bag`);
-    setCartDrawerOpen(true);
+    try { await addItem(product, variant.id, colour, size, quantity); toast.success(`${product.name} added to bag`); setCartDrawerOpen(true); }
+    catch (error) { toast.error((error as Error).message || 'Unable to add this item'); }
   };
 
   return (

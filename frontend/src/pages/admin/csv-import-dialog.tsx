@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { createAdminProduct } from '@/services/adminService';
+import { createAdminProduct, importAdminProducts } from '@/services/adminService';
+import { USE_MOCK_API } from '@/services/apiClient';
 import { slugify } from '@/utils/formatters';
 import type { Product } from '@/types';
 
@@ -101,11 +102,16 @@ function rowToProduct(row: Record<string, string>): Omit<Product, 'id' | 'create
 export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState('');
+  const [csvText, setCsvText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   const importMutation = useMutation({
     mutationFn: async (rows: ParsedRow[]) => {
+      if (!USE_MOCK_API) {
+        const result = await importAdminProducts(csvText);
+        return result.imported as Product[];
+      }
       const results: Product[] = [];
       for (const row of rows) {
         if (row.valid) {
@@ -128,6 +134,7 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
   const handleClose = () => {
     setParsedRows([]);
     setFileName('');
+    setCsvText('');
     onOpenChange(false);
   };
 
@@ -136,6 +143,7 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
     const reader = new FileReader();
     reader.onload = () => {
       const text = reader.result as string;
+      setCsvText(text);
       const rows = parseCsv(text);
       const validated = rows.map((r, i) => validateRow(r, i + 2));
       setParsedRows(validated);

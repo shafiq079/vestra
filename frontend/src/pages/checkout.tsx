@@ -54,11 +54,10 @@ export function CheckoutPage() {
         items: items.map((i) => ({ id: i.id, productId: i.productId, productName: i.product.name, productImage: i.product.images[0]?.url || '', brand: i.product.brand, colour: i.colour, size: i.size, quantity: i.quantity, price: i.price })),
         shippingAddress, deliveryOption: delivery,
         subtotal, discount, deliveryCost, total, promoCode,
-        estimatedDelivery: new Date(Date.now() + 4 * 86400000).toLocaleDateString('en-GB'),
       };
       const created = await createOrder(order);
-      clearCart();
-      navigate(`/order-confirmation/${created.id}`);
+      await clearCart();
+      navigate(`/order-confirmation/${created.id}`, { state: created });
     } catch {
       toast.error('Something went wrong. Please try again.');
     } finally {

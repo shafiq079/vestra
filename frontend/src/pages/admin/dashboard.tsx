@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, Package, ShoppingCart, Users, Sparkles, Ruler, AlertTriangle, Info, XCircle } from 'lucide-react';
-import { getDashboardMetrics, mockSalesData, mockTopProducts, mockRecentOrders, mockLowStockVariants, mockSystemIssues } from '@/services/adminService';
+import { getDashboardMetrics, getDashboardDetails } from '@/services/adminService';
 import { formatPrice } from '@/utils/formatters';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 export function AdminDashboardPage() {
   const { data: metrics, isLoading } = useQuery({ queryKey: ['admin-dashboard'], queryFn: getDashboardMetrics });
+  const { data: details } = useQuery({ queryKey: ['admin-dashboard-details'], queryFn: getDashboardDetails });
 
   if (isLoading || !metrics) {
     return <div className="space-y-4"><div className="h-32 bg-muted rounded-xl animate-pulse" /><div className="grid md:grid-cols-3 gap-4">{[1, 2, 3].map((i) => <div key={i} className="h-32 bg-muted rounded-xl animate-pulse" />)}</div></div>;
@@ -51,7 +52,8 @@ export function AdminDashboardPage() {
         <Card className="p-6">
           <h2 className="font-semibold mb-4">Revenue (Last 6 Months)</h2>
           <div className="space-y-3">
-            {mockSalesData.map((d) => (
+            {details?.sales.length === 0 && <p className="text-sm text-muted-foreground">Historical monthly reporting is not available from the current API.</p>}
+            {(details?.sales ?? []).map((d) => (
               <div key={d.month} className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground w-8">{d.month}</span>
                 <div className="flex-1 h-6 bg-muted rounded relative overflow-hidden">
@@ -66,7 +68,8 @@ export function AdminDashboardPage() {
         <Card className="p-6">
           <h2 className="font-semibold mb-4">Top Products</h2>
           <div className="space-y-3">
-            {mockTopProducts.map((p, i) => (
+            {details?.topProducts.length === 0 && <p className="text-sm text-muted-foreground">No paid order data is available yet.</p>}
+            {(details?.topProducts ?? []).map((p, i) => (
               <div key={p.productId} className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground w-4">{i + 1}</span>
                 <span className="text-sm font-medium flex-1 truncate">{p.productName}</span>
@@ -82,7 +85,8 @@ export function AdminDashboardPage() {
         <Card className="p-6">
           <h2 className="font-semibold mb-4">Recent Orders</h2>
           <div className="space-y-3">
-            {mockRecentOrders.map((o) => (
+            {details?.recentOrders.length === 0 && <p className="text-sm text-muted-foreground">No orders have been placed yet.</p>}
+            {(details?.recentOrders ?? []).map((o) => (
               <div key={o.id} className="flex items-center justify-between text-sm">
                 <div><p className="font-medium">{o.orderNumber}</p><p className="text-xs text-muted-foreground">{o.customer} · {o.date}</p></div>
                 <div className="flex items-center gap-2"><Badge variant="secondary" className="capitalize">{o.status}</Badge><span className="font-medium">{formatPrice(o.total)}</span></div>
@@ -95,7 +99,8 @@ export function AdminDashboardPage() {
           <Card className="p-6">
             <h2 className="font-semibold mb-4">Low Stock Alerts</h2>
             <div className="space-y-2">
-              {mockLowStockVariants.map((v) => (
+              {details?.lowStockVariants.length === 0 && <p className="text-sm text-muted-foreground">No low-stock variants.</p>}
+              {(details?.lowStockVariants ?? []).map((v) => (
                 <div key={v.sku} className="flex items-center justify-between text-sm">
                   <div><p className="font-medium">{v.productName}</p><p className="text-xs text-muted-foreground">{v.sku} · {v.colour} · {v.size}</p></div>
                   <Badge variant="destructive">{v.stock} left</Badge>
@@ -107,7 +112,8 @@ export function AdminDashboardPage() {
           <Card className="p-6">
             <h2 className="font-semibold mb-4">System Status</h2>
             <div className="space-y-2">
-              {mockSystemIssues.map((s) => (
+              {details?.systemIssues.length === 0 && <p className="text-sm text-muted-foreground">No system-status feed is exposed by the current API.</p>}
+              {(details?.systemIssues ?? []).map((s) => (
                 <div key={s.id} className="flex items-start gap-2 text-sm">
                   {s.severity === 'error' ? <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" /> : s.severity === 'warning' ? <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" /> : <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
                   <div><p className="text-muted-foreground">{s.message}</p><p className="text-xs text-muted-foreground mt-0.5">{s.time}</p></div>
