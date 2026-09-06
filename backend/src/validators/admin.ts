@@ -12,7 +12,7 @@ export const productFields = {
   shortDescription: z.string().max(2000).optional().default(''), fullDescription: z.string().max(10000).optional().default(''), category: z.string().trim().toLowerCase().min(1),
   subcategory: optionalText, collection: optionalText, genderCollection: z.enum(GENDER_COLLECTIONS), price: z.number().positive(), salePrice: z.number().nonnegative().optional(),
   currency: z.string().trim().min(3).max(3).optional().default('GBP'), images: z.array(image).optional().default([]), lifestyleImages: z.array(image).optional().default([]),
-  colours: z.array(z.string()).optional(), variants: z.array(variant).min(1), availableSizes: z.array(z.string()).optional(), materials: z.array(z.string()).optional().default([]),
+  colours: z.array(z.string()).optional(), variants: z.array(variant), availableSizes: z.array(z.string()).optional(), materials: z.array(z.string()).optional().default([]),
   careInstructions: z.array(z.string()).optional().default([]), fitDescription: z.string().max(2000).optional().default(''), modelInformation: optionalText,
   rating: z.number().min(0).max(5).optional().default(0), reviewCount: z.number().int().nonnegative().optional().default(0), stockStatus: z.enum(['in_stock','low_stock','out_of_stock']).optional(),
   badges: z.array(z.enum(PRODUCT_BADGES)).optional().default([]), tryOnEligible: z.boolean().optional().default(false), sizeRecommendationEligible: z.boolean().optional().default(false),

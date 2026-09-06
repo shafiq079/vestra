@@ -13,7 +13,7 @@ safe user/order/review management DTOs; and canonical Phase 5 promotion definiti
 valid rows in one transaction, and returns counts, imported Product DTOs, and row-numbered
 errors. Admin mutations persist privacy-minimal audit entries: identifiers, actions, changed
 field names, statuses and counts only—never credentials, payment data, request bodies, email,
-or addresses. Promotion display dates and usage limits are deterministic demo metadata and
+or addresses. Promotion display dates and numeric usage limits are deterministic display-only demo metadata and
 are not persistent usage accounting. VTO and size-recommendation dashboard metrics remain
 honestly zero until their later implementation phases.
 
