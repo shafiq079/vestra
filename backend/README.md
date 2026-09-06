@@ -1,6 +1,28 @@
 # VESTRA — Backend
 
-## Phase 7 admin API (under review)
+## Phase 9 product recommendations (under review)
+
+`GET /api/recommendations` returns all active recommendation groups and accepts an optional
+`placement` (`homepage`, `product_detail`, or `account`). `GET /api/recommendations/:type`
+returns one group. Both routes permit guests while using the existing strict optional bearer
+authentication convention. The type route accepts optional `productId` context, and both route
+forms accept `limit` from 1–8 (default 4).
+
+All nine frontend types are supported: `recommended_for_you`, `similar_styles`,
+`complete_the_look`, `frequently_bought_together`, `based_on_recently_viewed`,
+`inspired_by_wishlist`, `trending_in_your_size`, `new_arrivals_you_may_like`, and `trending`.
+They are derived at request time from published, in-stock catalogue products, aggregate paid
+non-cancelled order activity, and—when authenticated—the current user's purchases and wishlist.
+Scores use documented deterministic weights in the service, are rounded to a 0–1 range, and
+ties use product IDs. Personalised strategies exclude their signal products and cold-start
+cleanly falls back to truthful popularity/newness explanations.
+
+This phase creates no recommendation collection, uses no ML or external provider, and does not
+infer sizes from measurements. `trending_in_your_size` uses only purchased order-item size
+snapshots. Because browsing history is not persisted, `based_on_recently_viewed` uses optional
+current-product context and otherwise presents an explicitly generic fallback.
+
+## Phase 7 admin API
 
 All `/api/admin` routes are centrally protected by bearer authentication and the `admin`
 role. They manage the same Product and Category collections read by the public catalogue.
@@ -27,7 +49,7 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phase 6 is complete and merged. The Phase 7 admin API is under development/review.**
+**Phases 0A–8 are complete and merged. Phase 9 product recommendations are under review.**
 
 ### Phase 4 authentication and account API
 
