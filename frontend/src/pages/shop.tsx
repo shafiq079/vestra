@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { ProductCard } from '@/components/product/product-card';
-import { getProducts } from '@/services/productService';
+import { getFacetProducts, getProducts } from '@/services/productService';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -37,9 +37,13 @@ export function ShopPage() {
     queryKey: ['products', filters, page],
     queryFn: () => getProducts(filters, page, 12),
   });
+  const { data: facetProducts = [] } = useQuery({
+    queryKey: ['product-facets', gender, onSaleParam],
+    queryFn: () => getFacetProducts({ genderCollection: gender || undefined, onSale: onSaleParam || undefined }),
+  });
 
-  const allSizes = useMemo(() => [...new Set(data?.items.flatMap((p) => p.availableSizes) ?? [])], [data]);
-  const allColours = useMemo(() => [...new Set(data?.items.flatMap((p) => p.colours) ?? [])].slice(0, 12), [data]);
+  const allSizes = useMemo(() => [...new Set(facetProducts.flatMap((p) => p.availableSizes))], [facetProducts]);
+  const allColours = useMemo(() => [...new Set(facetProducts.flatMap((p) => p.colours))].slice(0, 12), [facetProducts]);
 
   const title = gender ? (gender === 'women' ? 'Women' : 'Men') : onSaleParam ? 'Sale' : 'All Products';
 

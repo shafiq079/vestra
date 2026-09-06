@@ -6,28 +6,62 @@ import * as service from '../services/wishlistService';
 
 interface WishlistState {
   items: WishlistItem[];
+  guestItems: WishlistItem[];
   hydrate: () => Promise<void>;
+  mergeGuestWishlist: () => Promise<void>;
   addItem: (product: Product) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
   toggleItem: (product: Product) => Promise<void>;
-  clearWishlist: () => void;
+  handleLogout: () => void;
   hasItem: (productId: string) => boolean;
 }
-const itemsFrom = (products: Product[]): WishlistItem[] => products.map((product) => ({ id: product.id, productId: product.id, product, addedAt: '' }));
+
+const itemsFrom = (products: Product[]): WishlistItem[] => products.map((product) => ({
+  id: product.id,
+  productId: product.id,
+  product,
+  addedAt: '',
+}));
+
 export const useWishlistStore = create<WishlistState>()(persist((set, get) => ({
   items: [],
-  hydrate: async () => { if (!USE_MOCK_API) set({ items: itemsFrom(await service.getWishlist()) }); },
+  guestItems: [],
+  hydrate: async () => {
+    if (!USE_MOCK_API && localStorage.getItem(AUTH_TOKEN_KEY)) set({ items: itemsFrom(await service.getWishlist()) });
+  },
+  mergeGuestWishlist: async () => {
+    if (USE_MOCK_API || !localStorage.getItem(AUTH_TOKEN_KEY)) return;
+    const guestItems = [...get().guestItems];
+    const serverProducts = await service.getWishlist();
+    const serverIds = new Set(serverProducts.map((product) => product.id));
+    for (const item of guestItems) {
+      if (!serverIds.has(item.productId)) {
+        await service.toggleWishlist(item.productId);
+        serverIds.add(item.productId);
+      }
+    }
+    const finalProducts = await service.getWishlist();
+    set({ items: itemsFrom(finalProducts), guestItems: [] });
+  },
   addItem: async (product) => { if (!get().hasItem(product.id)) await get().toggleItem(product); },
   removeItem: async (id) => { const item = get().items.find((entry) => entry.productId === id); if (item) await get().toggleItem(item.product); },
   toggleItem: async (product) => {
-    if (!USE_MOCK_API) {
-      if (!localStorage.getItem(AUTH_TOKEN_KEY)) throw new Error('Sign in to save items to your wishlist.');
-      const products = await service.toggleWishlist(product.id); if (products) set({ items: itemsFrom(products) }); return;
+    if (!USE_MOCK_API && localStorage.getItem(AUTH_TOKEN_KEY)) {
+      set({ items: itemsFrom(await service.toggleWishlist(product.id) ?? []) });
+      return;
     }
-    set((state) => state.items.some((item) => item.productId === product.id)
-      ? { items: state.items.filter((item) => item.productId !== product.id) }
-      : { items: [...state.items, { id: product.id, productId: product.id, product, addedAt: new Date().toISOString() }] });
+    set((state) => {
+      const items = state.items.some((item) => item.productId === product.id)
+        ? state.items.filter((item) => item.productId !== product.id)
+        : [...state.items, { id: product.id, productId: product.id, product, addedAt: new Date().toISOString() }];
+      return USE_MOCK_API ? { items } : { items, guestItems: items };
+    });
   },
-  clearWishlist: () => set({ items: [] }),
+  handleLogout: () => {
+    if (!USE_MOCK_API) set((state) => ({ items: state.guestItems }));
+  },
   hasItem: (id) => get().items.some((item) => item.productId === id),
-}), { name: 'vestra-wishlist', partialize: (state) => USE_MOCK_API ? { items: state.items } : { items: [] } }));
+}), {
+  name: 'vestra-wishlist',
+  partialize: (state) => USE_MOCK_API ? { items: state.items, guestItems: [] } : { items: state.guestItems, guestItems: state.guestItems },
+}));

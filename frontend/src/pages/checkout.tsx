@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import type { Address, DeliveryOption, Order } from '@/types';
+import { errorMessage } from '@/utils/errorMessage';
 
 const deliveryOptions: DeliveryOption[] = [
   { id: 'del1', name: 'Standard Delivery', description: '3-5 working days', price: 0, estimatedDays: '3-5 working days' },
@@ -58,8 +59,8 @@ export function CheckoutPage() {
       const created = await createOrder(order);
       resetLocalCart();
       navigate(`/order-confirmation/${created.id}`, { state: created });
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+    } catch (error) {
+      toast.error(errorMessage(error, 'Something went wrong. Please try again.'));
     } finally {
       setProcessing(false);
     }

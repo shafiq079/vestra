@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatPrice, getDiscountPercent } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { USE_MOCK_API } from '@/services/apiClient';
 
 export function ProductPage() {
   const { slug } = useParams();
@@ -39,6 +40,7 @@ export function ProductPage() {
 
   const price = product.salePrice ?? product.price;
   const hasSale = product.salePrice !== undefined && product.salePrice < product.price;
+  const reviewTabCount = USE_MOCK_API ? reviews.length : product.reviewCount;
   const colour = selectedColour || product.colours[0];
   const availableSizesForColour = product.variants.filter((v) => v.colour === colour).map((v) => v.size);
   const size = selectedSize || availableSizesForColour[0] || product.availableSizes[0];
@@ -159,7 +161,7 @@ export function ProductPage() {
           <TabsList className="w-full justify-start border-b border-border rounded-none">
             <TabsTrigger value="description">Description</TabsTrigger>
             <TabsTrigger value="details">Details & Care</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews ({reviewTabCount})</TabsTrigger>
           </TabsList>
           <TabsContent value="description" className="py-6 max-w-3xl">
             <p className="text-muted-foreground leading-relaxed">{product.fullDescription}</p>
@@ -174,7 +176,9 @@ export function ProductPage() {
           </TabsContent>
           <TabsContent value="reviews" className="py-6">
             <div className="space-y-6">
-              {reviews.length === 0 ? <p className="text-muted-foreground">No reviews yet.</p> : reviews.map((r) => (
+              {!USE_MOCK_API ? (
+                <p className="text-muted-foreground">{product.reviewCount > 0 ? 'Detailed customer reviews are not currently available through the public API.' : 'No reviews yet.'}</p>
+              ) : reviews.length === 0 ? <p className="text-muted-foreground">No reviews yet.</p> : reviews.map((r) => (
                 <div key={r.id} className="border-b border-border pb-6">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="flex">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={cn('h-4 w-4', i < r.rating ? 'fill-foreground' : 'text-muted-foreground')} />)}</div>

@@ -71,7 +71,7 @@ function refreshAccessToken(): Promise<string> {
 function mayRefresh(config: RetriableConfig | undefined): config is RetriableConfig {
   if (!config || config._retried) return false;
   const path = String(config.url ?? '').split('?')[0]!.replace(baseURL, '');
-  return !['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'].includes(path);
+  return !['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout', '/auth/forgot-password'].includes(path);
 }
 
 function normaliseError(error: AxiosError<{ code?: string; message?: string; details?: Record<string, string[]> }>): ApiError {

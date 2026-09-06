@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { USE_MOCK_API } from '@/services/apiClient';
+import { errorMessage } from '@/utils/errorMessage';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -30,11 +31,13 @@ export function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
+      const user = await login(email, password);
       toast.success('Welcome back!');
-      navigate('/account');
+      const mergeWarning = useAuthStore.getState().cartMergeWarning;
+      if (mergeWarning) toast.warning(`Signed in successfully, but your guest bag could not be merged. ${mergeWarning}`);
+      navigate(user.role === 'admin' ? '/admin' : '/account');
     } catch (err) {
-      toast.error((err as Error).message || 'Invalid credentials');
+      toast.error(errorMessage(err, 'Invalid credentials'));
     } finally {
       setLoading(false);
     }
