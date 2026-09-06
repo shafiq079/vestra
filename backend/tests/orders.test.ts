@@ -4,7 +4,7 @@ import { app } from '../src/app';
 import { Cart, Order, Product, User } from '../src/models';
 import { deriveStockStatus } from '../src/services/inventoryService';
 import { estimatedDelivery, resolveDeliveryOption } from '../src/services/deliveryService';
-import { generateOrderNumber } from '../src/services/orderService';
+import * as orderNumbers from '../src/services/orderNumberService';
 import { authHeader, createTestUser, mintTestAccessToken } from './helpers/auth';
 import { productFixture } from './fixtures/models';
 
@@ -90,6 +90,35 @@ describe('Phase 6 order checkout', () => {
     expect(responses.map((r) => r.status).sort()).toEqual([201, 409]);
     expect(await Order.countDocuments()).toBe(1); expect((await Product.findById(product._id))!.variants[0]!.stock).toBe(0);
   });
+
+  it('retries a deterministic order-number collision in a fresh transaction exactly once', async () => {
+    const user = await createTestUser(); const token = mintTestAccessToken(user);
+    const product = await productAndCart({ userId: user._id }); await Order.init();
+    const collision = 'VST-2026-AAAAAAAA'; const fresh = 'VST-2026-BBBBBBBB';
+    await Order.create({ orderNumber: collision, userId: user._id,
+      items: [{ productId: new Product(productFixture())._id, productName: 'Existing', productImage: '/existing.jpg', brand: 'VESTRA', colour: 'Black', size: 'M', quantity: 1, price: 1 }],
+      shippingAddress: address, deliveryOption: { name: 'Standard Delivery', description: '3-5 working days', price: 0, estimatedDays: '3-5 working days' },
+      subtotal: 1, deliveryCost: 0, total: 1, estimatedDelivery: '2026-09-11' });
+    const generator = vi.spyOn(orderNumbers, 'generateOrderNumber').mockReturnValueOnce(collision).mockReturnValueOnce(fresh);
+    const response = await request(app).post('/api/orders').set(authHeader(token)).send(compatibleBody());
+    expect(response.status).toBe(201); expect(response.body.orderNumber).toBe(fresh);
+    expect(generator).toHaveBeenCalledTimes(2);
+    expect(await Order.countDocuments({ orderNumber: fresh })).toBe(1);
+    expect((await Product.findById(product._id))!.variants[0]!.stock).toBe(9);
+  });
+
+  it.each([{ stock: 6, expected: 'low_stock' }, { stock: 1, expected: 'out_of_stock' }])(
+    'persists $expected after checkout changes aggregate inventory from $stock', async ({ stock, expected }) => {
+      const user = await createTestUser(); const token = mintTestAccessToken(user);
+      const product = await Product.create(productFixture({ isPublished: true, stockStatus: stock === 1 ? 'low_stock' : 'in_stock',
+        variants: [{ sku: `STATUS-${stock}`, colour: 'Black', colourHex: '#000', size: 'M', stock }] }));
+      await Cart.create({ userId: user._id, items: [{ productId: product._id, variantId: product.variants[0]!._id,
+        colour: 'Black', size: 'M', quantity: 1, price: product.price }] });
+      const response = await request(app).post('/api/orders').set(authHeader(token)).send(compatibleBody());
+      expect(response.status).toBe(201);
+      expect((await Product.findById(product._id))!.stockStatus).toBe(expected);
+    },
+  );
 });
 
 describe('order ownership and pure rules', () => {
@@ -108,7 +137,7 @@ describe('order ownership and pure rules', () => {
   it('derives stock transitions, delivery dates and unique readable numbers', () => {
     expect(deriveStockStatus([6])).toBe('in_stock'); expect(deriveStockStatus([5])).toBe('low_stock'); expect(deriveStockStatus([0, 0])).toBe('out_of_stock');
     expect(estimatedDelivery(resolveDeliveryOption('del1'), new Date('2026-09-04T10:00:00Z'))).toBe('2026-09-11');
-    const numbers = new Set(Array.from({ length: 100 }, () => generateOrderNumber(new Date('2026-01-01'))));
+    const numbers = new Set(Array.from({ length: 100 }, () => orderNumbers.generateOrderNumber(new Date('2026-01-01'))));
     expect(numbers.size).toBe(100); expect([...numbers][0]).toMatch(/^VST-2026-[A-F0-9]{8}$/);
   });
 });

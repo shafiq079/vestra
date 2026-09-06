@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import mongoose, { type ClientSession } from 'mongoose';
 import { Cart, Order, Product } from '../models';
 import type { CheckoutInput } from '../validators/order';
@@ -7,11 +6,10 @@ import type { CartOwner } from './cartService';
 import { calculateCartTotals } from './cartTotals';
 import { deliveryCost, estimatedDelivery, resolveDeliveryOption } from './deliveryService';
 import { deriveStockStatus } from './inventoryService';
+import * as orderNumbers from './orderNumberService';
 
 const ownerFilter = (owner: CartOwner) => 'userId' in owner ? { userId: owner.userId } : { guestId: owner.guestId };
-export function generateOrderNumber(now = new Date()): string {
-  return `VST-${now.getUTCFullYear()}-${randomBytes(4).toString('hex').toUpperCase()}`;
-}
+const ORDER_NUMBER_ATTEMPTS = 3;
 const primaryImage = (images: Array<{ url: string; position: number }>) =>
   [...images].sort((a, b) => a.position - b.position || a.url.localeCompare(b.url))[0]?.url ?? '';
 const money = (n: number) => Number(n.toFixed(2));
@@ -61,7 +59,7 @@ async function transact(owner: CartOwner, input: CheckoutInput, session: ClientS
   }
   const address = { ...input.shippingAddress, label: input.shippingAddress.label ?? 'Shipping', isDefault: input.shippingAddress.isDefault ?? false };
   delete (address as { id?: string }).id;
-  const [order] = await Order.create([{ orderNumber: generateOrderNumber(), ...('userId' in owner ? { userId: owner.userId } : { guestEmail: input.guestEmail }),
+  const [order] = await Order.create([{ orderNumber: orderNumbers.generateOrderNumber(), ...('userId' in owner ? { userId: owner.userId } : { guestEmail: input.guestEmail }),
     items, shippingAddress: address, deliveryOption: { deliveryId: option.id, name: option.name, description: option.description, price: option.price, estimatedDays: option.estimatedDays },
     subtotal: totals.subtotal, discount: totals.discount, deliveryCost: cost, total: money(Math.max(0, totals.subtotal - totals.discount + cost)),
     ...(totals.promo.valid && cart.promoCode ? { promoCode: cart.promoCode } : {}), status: 'confirmed', paymentStatus: 'paid', estimatedDelivery: estimatedDelivery(option) }], { session });
@@ -71,17 +69,36 @@ async function transact(owner: CartOwner, input: CheckoutInput, session: ClientS
 
 export async function createOrder(owner: CartOwner, input: CheckoutInput) {
   const session = await mongoose.startSession();
-  let created: InstanceType<typeof Order> | undefined;
   try {
-    await session.withTransaction(async () => { created = await transact(owner, input, session); });
-    if (!created) throw new Error('Transaction did not create an order');
-    return dto(created);
+    for (let attempt = 1; attempt <= ORDER_NUMBER_ATTEMPTS; attempt += 1) {
+      let created: InstanceType<typeof Order> | undefined;
+      try {
+        // A duplicate-key write aborts a MongoDB transaction, so each fresh number is
+        // attempted in a fresh transaction while the bounded retry remains within checkout.
+        await session.withTransaction(async () => { created = await transact(owner, input, session); });
+        if (!created) throw new Error('Transaction did not create an order');
+        return dto(created);
+      } catch (error) {
+        if (isOrderNumberCollision(error)) {
+          if (attempt < ORDER_NUMBER_ATTEMPTS) continue;
+          throw HttpError.conflict('A unique order number could not be allocated. Please try again.');
+        }
+        throw error;
+      }
+    }
+    throw new Error('Order number retry loop ended unexpectedly');
   } catch (error) {
     if (isHttpError(error)) throw error;
     const labelled = error as { hasErrorLabel?: (label: string) => boolean; code?: number };
     if (labelled.code === 112 || labelled.hasErrorLabel?.('TransientTransactionError')) throw HttpError.conflict('Inventory changed during checkout. Please try again.');
     throw error;
   } finally { await session.endSession(); }
+}
+
+function isOrderNumberCollision(error: unknown): boolean {
+  const duplicate = error as { code?: number; keyPattern?: Record<string, unknown>; keyValue?: Record<string, unknown> };
+  return duplicate?.code === 11000 &&
+    (duplicate.keyPattern?.orderNumber !== undefined || duplicate.keyValue?.orderNumber !== undefined);
 }
 
 export async function listOrders(userId: string) { return Promise.all((await Order.find({ userId }).sort({ createdAt: -1 })).map(dto)); }
