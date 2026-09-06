@@ -3,7 +3,6 @@ import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag, X } from 'lucide-rea
 import { useCartStore } from '@/store/cartStore';
 import { applyPromoCode as validatePromoCode } from '@/services/cartService';
 import { formatPrice } from '@/utils/formatters';
-import { brand } from '@/config/brand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
@@ -21,7 +20,7 @@ export function CartPage() {
   const removePromo = useCartStore((s) => s.removePromoCode);
   const [promoInput, setPromoInput] = useState('');
 
-  const deliveryCost = subtotal >= brand.deliveryThreshold || subtotal === 0 ? 0 : 4.95;
+  const deliveryCost = 0;
   const total = Math.max(0, subtotal - discount + deliveryCost);
 
   const handleApplyPromo = async () => {

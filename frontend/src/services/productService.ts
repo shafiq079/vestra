@@ -146,7 +146,7 @@ export async function search(query: string): Promise<Product[]> {
     );
     return mockRequest(products);
   }
-  const response = await apiClient.get(`/products/search?q=${query}`);
+  const response = await apiClient.get('/products/search', { params: { q: query } });
   return response.data;
 }
 

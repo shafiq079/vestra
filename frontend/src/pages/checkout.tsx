@@ -18,7 +18,7 @@ import { errorMessage } from '@/utils/errorMessage';
 const deliveryOptions: DeliveryOption[] = [
   { id: 'del1', name: 'Standard Delivery', description: '3-5 working days', price: 0, estimatedDays: '3-5 working days' },
   { id: 'del2', name: 'Express Delivery', description: '1-2 working days', price: 7.95, estimatedDays: '1-2 working days' },
-  { id: 'del3', name: 'Next Day Delivery', description: 'Order before 2pm', price: 12.95, estimatedDays: 'Next working day' },
+  { id: 'del3', name: 'Next Day Delivery', description: 'Next working day', price: 12.95, estimatedDays: 'Next working day' },
 ];
 
 export function CheckoutPage() {
