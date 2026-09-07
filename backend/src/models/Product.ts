@@ -9,6 +9,12 @@ export const productImageSchema = new Schema({
   alt: { type: String, required: true, trim: true },
   position: { type: Number, required: true, min: 0 },
   isLifestyle: { type: Boolean, default: false },
+  colour: { type: String, trim: true },
+  isTryOnReady: { type: Boolean, default: false },
+  cloudinaryAssetId: { type: String, trim: true },
+  cloudinaryPublicId: { type: String, trim: true },
+  cloudinaryVersion: { type: Number, min: 1 },
+  cloudinaryFormat: { type: String, trim: true },
 });
 export const productVariantSchema = new Schema({
   sku: { type: String, required: true, trim: true },

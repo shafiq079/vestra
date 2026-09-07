@@ -1,40 +1,43 @@
 import { Sparkles, Ruler, Camera, Activity, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { getDashboardMetrics } from '@/services/adminService';
 
 export function AdminAiFeaturesPage() {
+  const { data: dashboard } = useQuery({ queryKey: ['admin-dashboard'], queryFn: getDashboardMetrics });
   const features = [
     {
       name: 'Size Recommendation Engine',
       icon: Ruler,
-      status: 'active',
-      description: 'AI model that compares user measurements against product fit profiles to recommend the best size.',
+      status: 'inactive',
+      description: 'The Phase 13 ML model has not been supplied, so size recommendation is currently unavailable.',
       metrics: [
-        { label: 'Total Requests', value: '2,104' },
-        { label: 'Success Rate', value: '91%' },
-        { label: 'Avg Latency', value: '1.2s' },
+        { label: 'Total Requests', value: String(dashboard?.sizeRecUsage.total ?? 0) },
+        { label: 'Success Rate', value: `${dashboard?.sizeRecUsage.successRate ?? 0}%` },
+        { label: 'Status', value: 'Unavailable' },
       ],
     },
     {
       name: 'Virtual Try-On',
       icon: Camera,
       status: 'active',
-      description: 'Computer vision service that overlays garments on user-uploaded photos for a realistic preview.',
+      description: 'Server-mediated Pixelcut previews using temporary private Cloudinary source storage.',
       metrics: [
-        { label: 'Total Sessions', value: '1,842' },
-        { label: 'Helpful Rate', value: '78%' },
-        { label: 'Avg Processing', value: '3.5s' },
+        { label: 'Completed', value: String(dashboard?.vtoUsage.total ?? 0) },
+        { label: 'Helpful Rate', value: `${dashboard?.vtoUsage.helpfulRate ?? 0}%` },
+        { label: 'Provider', value: 'Pixelcut' },
       ],
     },
     {
       name: 'Product Recommendations',
       icon: Sparkles,
       status: 'active',
-      description: 'Personalised recommendation engine using collaborative filtering and content-based methods.',
+      description: 'Deterministic catalogue, order, wishlist and purchase-signal recommendations from Phase 9.',
       metrics: [
-        { label: 'Impressions', value: '45.2K' },
-        { label: 'Click-Through Rate', value: '12.4%' },
-        { label: 'Conversion Rate', value: '3.8%' },
+        { label: 'Strategies', value: '9' },
+        { label: 'External AI', value: 'None' },
+        { label: 'Status', value: 'Active' },
       ],
     },
   ];
@@ -82,11 +85,11 @@ export function AdminAiFeaturesPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Size Recommendation Model</span>
-            <div className="flex items-center gap-2"><span className="text-success">●</span><span className="text-xs">Operational</span></div>
+            <div className="flex items-center gap-2"><span className="text-muted-foreground">●</span><span className="text-xs">Unavailable until Phase 13</span></div>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Virtual Try-On Provider</span>
-            <div className="flex items-center gap-2"><span className="text-warning">●</span><span className="text-xs">Degraded — maintenance scheduled</span></div>
+            <div className="flex items-center gap-2"><span className="text-success">●</span><span className="text-xs">Server integration configured</span></div>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Recommendation Pipeline</span>

@@ -1,5 +1,25 @@
 # Phase 2 schema mapping
 
+## Phase 10 Virtual Try-On persistence
+
+`VirtualTryOnJob` is privacy-minimal orchestration state, not a customer gallery. It stores the
+opaque VESTRA job id, authenticated owner reference or hashed guest capability, idempotency and
+request fingerprints, selected catalogue product/colour, Pixelcut job id, lifecycle state,
+consent version/time, quota reservation, expiry, feedback, and the private Cloudinary asset
+identifiers required for deletion. Customer image bytes/base64, the time-limited Cloudinary
+download URL, raw provider payloads, credentials, body measurements, and provider error bodies
+are never persisted. Result URLs are temporary provider references and carry an explicit expiry.
+
+`VirtualTryOnQuota` atomically tracks UTC-day starts, active reservations and successful
+completions per opaque owner. `VirtualTryOnRateLimit` is a TTL-backed fixed-window counter.
+Guest job access requires both the browser's session UUID and a per-job random capability whose
+HMAC is stored; authenticated job access is scoped to `ownerUserId`.
+
+Product images retain the existing DTO fields and may add backward-compatible `colour`,
+`isTryOnReady`, and Cloudinary asset metadata. Only a published, stocked, VTO-enabled product
+with an explicitly ready non-lifestyle garment image is eligible. Existing external catalogue
+URLs remain valid catalogue data but are not implicitly declared suitable for try-on.
+
 ## Phase 9 derived recommendation responses
 
 Recommendation groups are calculated from the existing Product, Order, and WishlistItem

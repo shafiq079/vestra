@@ -1,8 +1,7 @@
-import { USE_MOCK_API, apiClient } from './apiClient';
+import { apiClient } from './apiClient';
 import type { Address, MeasurementProfile, User } from '../types';
 
 export async function updateProfile(updates: Pick<Partial<User>, 'firstName' | 'lastName' | 'avatar' | 'marketingOptIn'>): Promise<User> {
-  if (USE_MOCK_API) throw new Error('Mock profile updates are managed by the auth store.');
   return (await apiClient.patch<User>('/profile', updates)).data;
 }
 

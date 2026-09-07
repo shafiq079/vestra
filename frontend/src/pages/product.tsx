@@ -15,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatPrice, getDiscountPercent } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { USE_MOCK_API } from '@/services/apiClient';
 
 export function ProductPage() {
   const { slug } = useParams();
@@ -40,10 +39,14 @@ export function ProductPage() {
 
   const price = product.salePrice ?? product.price;
   const hasSale = product.salePrice !== undefined && product.salePrice < product.price;
-  const reviewTabCount = USE_MOCK_API ? reviews.length : product.reviewCount;
+  const reviewTabCount = product.reviewCount;
   const colour = selectedColour || product.colours[0];
   const availableSizesForColour = product.variants.filter((v) => v.colour === colour).map((v) => v.size);
   const size = selectedSize || availableSizesForColour[0] || product.availableSizes[0];
+  const hasTryOnImage = product.images.some((image) => image.isTryOnReady && !image.isLifestyle
+    && (!image.colour || image.colour === colour));
+  const canTryOn = product.tryOnEligible && hasTryOnImage
+    && product.variants.some((variant) => variant.colour === colour && variant.stock > 0);
 
   const handleAddToCart = async () => {
     const variant = product.variants.find((v) => v.colour === colour && v.size === size);
@@ -142,7 +145,7 @@ export function ProductPage() {
             <Button size="lg" variant="outline" onClick={() => void handleWishlist()}><Heart className={cn('h-5 w-5', hasWishlist && 'fill-destructive text-destructive')} /></Button>
           </div>
 
-          {product.tryOnEligible && (
+          {canTryOn && (
             <Button asChild variant="outline" size="lg" className="w-full mt-3"><Link to={`/virtual-fitting-room?productId=${product.id}&colour=${encodeURIComponent(colour)}`}><Scan className="h-5 w-5" /> Try On Virtually</Link></Button>
           )}
 
@@ -176,9 +179,7 @@ export function ProductPage() {
           </TabsContent>
           <TabsContent value="reviews" className="py-6">
             <div className="space-y-6">
-              {!USE_MOCK_API ? (
-                <p className="text-muted-foreground">{product.reviewCount > 0 ? 'Detailed customer reviews are not currently available through the public API.' : 'No reviews yet.'}</p>
-              ) : reviews.length === 0 ? <p className="text-muted-foreground">No reviews yet.</p> : reviews.map((r) => (
+              {reviews.length === 0 ? <p className="text-muted-foreground">{product.reviewCount > 0 ? 'Detailed customer reviews are not currently available through the public API.' : 'No reviews yet.'}</p> : reviews.map((r) => (
                 <div key={r.id} className="border-b border-border pb-6">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="flex">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={cn('h-4 w-4', i < r.rating ? 'fill-foreground' : 'text-muted-foreground')} />)}</div>

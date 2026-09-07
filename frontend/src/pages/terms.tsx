@@ -2,7 +2,7 @@ export function TermsPage() {
   return (
     <div className="container-vestra py-12 lg:py-20 max-w-3xl mx-auto">
       <h1 className="font-display text-4xl lg:text-5xl mb-4 text-center">Terms & Conditions</h1>
-      <p className="text-sm text-muted-foreground text-center mb-12">Last updated: 1 October 2024</p>
+      <p className="text-sm text-muted-foreground text-center mb-12">Last updated: 8 September 2026</p>
 
       <div className="space-y-8 text-muted-foreground">
         <section>
@@ -23,7 +23,7 @@ export function TermsPage() {
         </section>
         <section>
           <h2 className="font-display text-xl text-foreground mb-2">5. AI Features</h2>
-          <p>Our size recommendation and virtual try-on features are provided as guidance only. We do not guarantee fit accuracy. You are responsible for the photos you upload and must have consent from any individuals depicted.</p>
+          <p>Virtual try-on previews are AI-generated visual guidance only. They do not guarantee fit, size, colour, fabric behavior, or exact garment detail. ML size recommendation remains unavailable until Phase 13. You are responsible for uploaded photos and must have permission from every person depicted.</p>
         </section>
         <section>
           <h2 className="font-display text-xl text-foreground mb-2">6. Intellectual Property</h2>

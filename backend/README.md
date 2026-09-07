@@ -1,6 +1,45 @@
 # VESTRA — Backend
 
-## Phase 9 product recommendations (under review)
+## Phase 10 Cloudinary + Pixelcut Virtual Try-On (under review)
+
+Virtual Try-On is a genuine asynchronous, server-mediated integration:
+
+`browser upload → Express validation/consent → private temporary Cloudinary asset → expiring
+download URL → Pixelcut → temporary result URL`
+
+The public surface is `GET /api/virtual-try-on/eligible`,
+`GET /api/virtual-try-on/product/:productId`, and multipart
+`POST /api/virtual-try-on`. Lifecycle routes are
+`GET /api/virtual-try-on/jobs/:jobId`,
+`POST /api/virtual-try-on/jobs/:jobId/cancel`, and
+`PUT /api/virtual-try-on/jobs/:jobId/feedback`. Catalogue images are uploaded by an
+authenticated administrator at `POST /api/admin/images` before their Cloudinary metadata is
+saved with a product.
+
+Express—not the browser—holds both providers' credentials. The browser never supplies a garment
+URL or eligibility flag: MongoDB resolves publication, stock, selected colour and an explicitly
+`isTryOnReady` non-lifestyle image. Uploads use Multer memory storage, require one genuine
+JPEG/PNG (signature and dimensions checked), and are capped at 10 MB. Consent is parsed before
+storage or provider submission.
+
+Customer photos use random, non-identifying public IDs in `vestra/vto-temporary`, Cloudinary
+`private` delivery, and an expiring authenticated download URL that remains reachable by
+Pixelcut during asynchronous work. Completion, failure, cancellation and deadline paths delete
+the source; a startup/interval reconciler retries failed cleanup and handles abandoned jobs.
+MongoDB stores deletion metadata but never image bytes, base64, or the expiring source URL.
+Pixelcut result URLs are exposed only to the job owner and treated as expiring after one hour.
+
+Authenticated jobs are user-scoped. Guest jobs require a session UUID plus an unguessable
+per-job capability. Invalid bearer tokens never downgrade to guest access. Persistent atomic
+rate, daily and concurrent counters protect submissions, while VESTRA-side idempotency prevents
+duplicate generation. An indeterminate submission timeout is recorded as uncertain and is never
+automatically retried because doing so could spend twice.
+
+Tests use injected provider/storage doubles and mocked HTTP/SDK transports; they never make a
+live, chargeable Pixelcut request. A configured provider account and deployed MongoDB/Cloudinary
+environment still require an explicit non-test smoke test.
+
+## Phase 9 product recommendations
 
 `GET /api/recommendations` returns all active recommendation groups and accepts an optional
 `placement` (`homepage`, `product_detail`, or `account`). `GET /api/recommendations/:type`
@@ -40,8 +79,9 @@ valid rows in one transaction, and returns counts, imported Product DTOs, and ro
 errors. Admin mutations persist privacy-minimal audit entries: identifiers, actions, changed
 field names, statuses and counts only—never credentials, payment data, request bodies, email,
 or addresses. Promotion display dates and numeric usage limits are deterministic display-only demo metadata and
-are not persistent usage accounting. VTO and size-recommendation dashboard metrics remain
-honestly zero until their later implementation phases.
+are not persistent usage accounting. Phase 10 derives VTO totals from completed generations
+and helpful rate only from submitted feedback. Size-recommendation metrics remain zero until
+Phase 13.
 
 Node.js / Express / TypeScript REST API over MongoDB Atlas, consumed by the React
 frontend in [`frontend/`](../frontend).
@@ -53,7 +93,7 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phases 0A–8 are complete and merged. Phase 9 product recommendations are under review.**
+**Phases 0A–9 are complete and merged. Phase 10 Virtual Try-On is under review.**
 
 ### Phase 4 authentication and account API
 
@@ -71,8 +111,8 @@ bcrypt. Configure `JWT_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `BCRYPT_ROUNDS`, and
 Run `npm run seed:demo-users` to idempotently seed the demonstration customer and administrator;
 the command additionally requires `DEMO_CUSTOMER_PASSWORD` and `DEMO_ADMIN_PASSWORD`. The
 forgot-password route intentionally gives a generic, non-enumerating acknowledgement only:
-Phase 4 has no email delivery provider or password-reset completion flow. Frontend integration
-remains Phase 8, so the existing mock frontend remains untouched.
+Phase 4 has no email delivery provider or password-reset completion flow. The production frontend
+now uses these real routes; demo buttons prefill only the public email and bundle no password.
 
 ### Phase 5 cart and wishlist API
 
@@ -207,6 +247,21 @@ Copy [`.env.example`](.env.example) to `.env` and fill it in. **Never commit `.e
 | `PORT` | no | `5000` | Port the HTTP server binds to. 5000 matches the frontend default |
 | `MONGODB_URI` | **yes** | — | MongoDB connection string. Must start `mongodb://` or `mongodb+srv://` |
 | `CORS_ORIGIN` | no | `http://localhost:5173` | Comma-separated list of permitted browser origins. A wildcard `*` is rejected when `NODE_ENV=production` |
+| `PIXELCUT_API_KEY` | **yes** | — | Newly issued server-only Pixelcut credential |
+| `CLOUDINARY_CLOUD_NAME` | **yes** | — | Cloudinary account name |
+| `CLOUDINARY_API_KEY` | **yes** | — | Server-only Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | **yes** | — | Server-only Cloudinary signing secret |
+| `VTO_DAILY_QUOTA` | no | `5` | Started jobs allowed per owner per UTC day |
+| `VTO_CONCURRENT_LIMIT` | no | `1` | Active jobs allowed per owner |
+| `VTO_RATE_LIMIT_WINDOW_SECONDS` | no | `60` | Persistent submission-rate window |
+| `VTO_RATE_LIMIT_MAX_REQUESTS` | no | `5` | Submission attempts per rate window |
+| `VTO_PROVIDER_TIMEOUT_MS` | no | `10000` | Timeout for each Pixelcut HTTP request |
+| `VTO_JOB_DEADLINE_SECONDS` | no | `600` | Overall asynchronous processing deadline |
+| `VTO_SOURCE_URL_TTL_SECONDS` | no | `900` | Private source-photo URL lifetime |
+| `VTO_RECONCILE_INTERVAL_SECONDS` | no | `60` | Abandoned-job and deletion-retry interval |
+
+`VTO_SOURCE_URL_TTL_SECONDS` must be at least 60 seconds longer than the overall job deadline,
+so Pixelcut cannot lose access to the private source while a job is still allowed to run.
 
 ## Structure
 
@@ -302,12 +357,13 @@ phases should follow, and how database isolation is guaranteed and asserted.
 npm test
 ```
 
-## Future services
+## External services
 
 Both are strictly server-mediated so the browser never holds a provider credential:
 
-- **Virtual Try-On** (Phase 10) — `React → Express → external VTO provider`, behind a
-  swappable provider interface.
+- **Virtual Try-On** (Phase 10) — `React → Express → Cloudinary/Pixelcut`, behind provider and
+  storage interfaces. Implemented; production credentials and an approved live smoke test remain
+  deployment responsibilities.
 - **ML Size Recommendation** (Phase 13) — `React → Express → Python ML service`. Last in
   the sequence only because the trained model has not been supplied yet; the measurement
   form schema stays model-determined so no input set is hard-coded.

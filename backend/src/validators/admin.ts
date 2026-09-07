@@ -5,7 +5,9 @@ import { parseBody } from './shared';
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid ObjectId');
 const optionalText = z.string().trim().max(2000).optional();
-const image = z.object({ id: z.string().optional(), url: z.string().trim().min(1), alt: z.string().max(500).optional().default(''), position: z.number().int().nonnegative(), isLifestyle: z.boolean().optional().default(false) }).strict();
+const image = z.object({ id: z.string().optional(), url: z.string().trim().min(1).max(2000), alt: z.string().max(500).optional().default(''), position: z.number().int().nonnegative(), isLifestyle: z.boolean().optional().default(false), colour: z.string().trim().optional(), isTryOnReady: z.boolean().optional().default(false), cloudinaryAssetId: z.string().trim().optional(), cloudinaryPublicId: z.string().trim().optional(), cloudinaryVersion: z.number().int().positive().optional(), cloudinaryFormat: z.string().trim().optional() }).strict().superRefine((value, ctx) => {
+  if (value.isTryOnReady && !value.url.startsWith('https://')) ctx.addIssue({ code: 'custom', path: ['url'], message: 'A VTO-ready image URL must use HTTPS' });
+});
 const variant = z.object({ id: z.string().optional(), sku: z.string().trim().min(1).max(100), colour: z.string().trim().min(1), colourHex: z.string().trim().min(1), size: z.string().trim().min(1), stock: z.number().int().nonnegative(), image: z.string().trim().optional() }).strict();
 export const productFields = {
   slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), name: z.string().trim().min(1), brand: z.string().trim().min(1),

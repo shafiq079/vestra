@@ -1,6 +1,6 @@
 # VESTRA — Backend Implementation Plan
 
-**Status:** Phases 0A–8 complete and merged · **Phase 9 in progress / under review**
+**Status:** Phases 0A–9 complete and merged · **Phase 10 in progress / under review**
 **Integration branch:** `backend-development` — every phase is developed on its own scoped branch and merged in by pull request
 **Scope owner:** project owner (dissertation author)
 
@@ -39,7 +39,7 @@ The frontend already exists and defines the contract. **The backend conforms to 
 | Auth transport | `Authorization: Bearer <token>` |
 | Error body | `{ code, message, details? }` |
 | Route names | the 11 modules in `frontend/src/services/` |
-| Mock toggle | `VITE_USE_MOCK_API` must keep working |
+| Production data path | Express API only; the owner retired `VITE_USE_MOCK_API` in Phase 10 |
 
 ### Repository and deployment layout — two independent applications
 
@@ -87,8 +87,8 @@ Consequence: by the time Phase 11 begins, every route group already has working 
 | 6 | Checkout, orders and inventory updates | 3, 4, 5 | **Complete and merged** |
 | 7 | Admin APIs | 3, 4, 6 | **Complete and merged** |
 | 8 | Gradual frontend/backend integration | 3–7 | **Complete and merged** |
-| 9 | Product recommendations | 3, 6 | **In progress / under review** |
-| 10 | Virtual Try-On backend/provider abstraction | 1, 3, 4 | Not started |
+| 9 | Product recommendations | 3, 6 | **Complete and merged** |
+| 10 | Cloudinary + Pixelcut Virtual Try-On and production mock retirement | 1, 3, 4, 8, 9 | **In progress / under review** |
 | 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) | Not started |
 | 12 | Backend deployment and production configuration | 11 | Not started |
 | 13 | ML Size Recommendation integration (**LAST**) | 12 + client-supplied model | Blocked — awaiting client model |
@@ -460,7 +460,7 @@ Switch the frontend from mock services to the real API **incrementally and rever
 **Main deliverables**
 - A documented, agreed switch order, lowest risk first: catalogue reads → auth → cart/wishlist → orders → admin.
 - Per-domain enabling of the real path inside `frontend/src/services/*` only, leaving page components, stores, hooks, routing, and styling untouched.
-- `VITE_USE_MOCK_API` retained as a working rollback switch; mock mode must still run with the backend offline.
+- `VITE_USE_MOCK_API` was retained at Phase 8. The owner explicitly retired it and all production mock branches in Phase 10; this historical Phase 8 deliverable is superseded.
 - `VITE_API_BASE_URL` verified against the deployed and local backend.
 - CORS, cookie/token, and preflight behaviour confirmed against the real Vite origin.
 - Real-token wiring into the existing `localStorage['vestra-auth-token']` mechanism — transport unchanged.
@@ -470,7 +470,7 @@ Switch the frontend from mock services to the real API **incrementally and rever
 **Test deliverables (this phase's functionality)**
 - Backend suite re-run after each domain is switched, confirming no regression was introduced by integration work.
 - Frontend verification per domain: `npm run typecheck` and `npm run build` pass with zero errors after every service-module change.
-- A mock-mode regression check per domain: with `VITE_USE_MOCK_API=true` and the backend stopped, the app still runs — proving the rollback switch is real, not nominal.
+- At the time of Phase 8, a mock-mode regression check proved the rollback path. Phase 10 later removed that path by explicit owner decision.
 - Manual browser verification per domain, recorded in the integration log with what was checked.
 - Error-path checks against real failures (backend down, 401, 404, 500) confirming the existing Axios interceptor still produces the expected UI states.
 
@@ -479,7 +479,7 @@ Phases 3–7 (the endpoints being integrated, each already covered by its own te
 
 **Completion criteria**
 - Each switched domain works end to end against the real backend in the browser.
-- `VITE_USE_MOCK_API=true` still fully restores mock behaviour with no backend running.
+- Historical Phase 8 criterion, superseded by the Phase 10 production-mock retirement decision.
 - `npm run build` and `npm run typecheck` pass with zero errors.
 - **The backend suite still passes after every domain switch, with real output reported.**
 - No page component, store, layout, route guard, or style file was modified — changes confined to service modules and environment configuration.
@@ -525,41 +525,35 @@ Phase 3 (catalogue), Phase 6 (order history as a behavioural signal). Best done 
 ## Phase 10 — Virtual Try-On backend/provider abstraction
 
 **Objective**
-Move Virtual Try-On from frontend mock to a real server-mediated integration, with the provider hidden behind an abstraction and provider credentials never leaving the server.
+Deliver genuine Pixelcut Virtual Try-On through Express, with temporary private Cloudinary
+storage, asynchronous lifecycle handling, and no production fake-success fallback.
 
 **Main deliverables**
-- `POST /api/virtual-try-on`, `GET /api/virtual-try-on/eligible`, `GET /api/virtual-try-on/product/:productId`.
-- A `VirtualTryOnProvider` interface plus at least a mock provider implementation, so the concrete third-party provider is swappable without touching routes, controllers, or the frontend.
-- Multipart image upload handling (`multer`) with MIME-type and size limits and rejection of non-image payloads.
-- Provider credentials read only from validated env config; **never** returned to the client, logged, or embedded in a response.
-- Rate limiting and per-user quota on the VTO endpoint, plus provider timeout and failure handling that returns a correctly shaped error.
-- Privacy-first image lifecycle: uploaded customer photographs are processed transiently and **not** persisted beyond what the request requires; temporary files are cleaned up deterministically. The retention rule is documented explicitly.
-- Consent enforced server-side — a request without `consentGiven` is rejected, not silently processed.
-- Results honestly flagged via `isDemo` while a mock provider is in use; no false claim of real provider processing.
-- Optional feedback capture (`helpful` / `not_helpful`) for the admin VTO usage metric.
+- Eligibility/product/submission routes plus owner-scoped status, cancellation and feedback routes.
+- Provider-neutral `VirtualTryOnProvider` with the real Pixelcut adapter; controllers contain no provider HTTP logic and production has no mock fallback.
+- Cloudinary storage abstraction: authenticated permanent catalogue uploads and random-ID private temporary customer-photo uploads. Pixelcut receives an expiring authenticated download URL, not a normal non-expiring signed asset URL.
+- Exactly one JPEG/PNG via Multer memory storage, maximum 10 MB, verified file signature and 64–6000 pixel dimensions, with tightly bounded multipart fields.
+- Consent validation before storage/submission; MongoDB authority for publication, stock, colour and explicitly suitable garment imagery.
+- Persisted pending/running/completed/failed/cancelled jobs, safe provider errors, bounded request timeouts, an overall deadline, cancellation, result expiry and reconciliation of abandoned jobs/failed deletions.
+- Authenticated user ownership or guest session plus per-job capability; invalid bearer tokens do not become guests.
+- Atomic persistent rate, UTC-day and concurrent limits; VESTRA idempotency reservations prevent duplicate generation, and uncertain submissions are never automatically resubmitted.
+- Helpful/not-helpful feedback and admin metrics based on completed jobs/submitted feedback; Phase 13 metrics remain zero.
+- Real frontend upload, polling, cancellation, feedback and expiry while preserving the existing design. Retire `VITE_USE_MOCK_API`, production mock branches and `frontend/src/mocks/` by explicit owner authorisation; unavailable functionality reports honestly.
 
 **Test deliverables (this phase's functionality)**
-- Integration tests for all three VTO routes against a stub provider — no real provider call in the test suite.
-- A provider-swap test: a second `VirtualTryOnProvider` implementation is selected by configuration alone, proving the abstraction holds.
-- Upload-rejection tests: oversized file, non-image MIME type, and missing file each rejected with the correct status and error shape.
-- A consent test asserting a request without `consentGiven` is rejected before any provider call is attempted.
-- A temporary-file cleanup test asserting no uploaded image remains on disk after the request completes, including on the failure path.
-- Provider-failure tests: timeout and error responses surface as a correctly shaped error, never a stack trace or a leaked provider payload.
-- A test asserting no provider credential appears in any response body or log line.
-- A test asserting `isDemo` is `true` while a mock/stub provider is in use.
+- Express integration tests with injected provider/storage doubles for eligibility and colour authority, validation, consent-before-storage, lifecycle, cancellation, idempotency, quotas/concurrency, owner isolation, metadata privacy, cleanup/recovery, feedback and metrics.
+- Real Pixelcut/Cloudinary adapter mapping tests use mocked HTTP/SDK transports. Automated tests make no live chargeable request.
+- Frontend type-check/build and audits for production mock imports, secrets, customer-photo artefacts and lockfile boundaries.
 
 **Dependencies**
-Phase 1 (foundation and test harness), Phase 3 (product/variant resolution for eligibility and colour), Phase 4 (user identity, quota, consent audit).
+Phases 1, 3 and 4, plus merged Phase 8 real API integration and Phase 9 recommendations.
 
 **Completion criteria**
-- A try-on request completes through Express against the mock provider and returns a result assignable to `VirtualTryOnResult`.
-- No provider key is present in any response, log line, or client-visible artefact.
-- Requests without consent, with an oversized file, or with a non-image file are rejected with correct status codes.
-- Temporary uploads are provably removed after processing; retention behaviour matches the documented policy.
-- The provider can be swapped by changing configuration alone — demonstrated by a second implementation of the interface.
-- The existing product-page try-on flow still carries the exact selected product and colour, per `AGENTS.md`.
-- `isDemo` accurately reflects whether a real provider was used.
-- **VTO route, provider-swap, upload-rejection, consent, and cleanup tests added and passing; the whole suite still green.**
+- The genuine Pixelcut adapter is the only production provider and completed results carry `isDemo: false`; no live call is claimed unless separately authorised and performed.
+- Cloudinary/Pixelcut credentials remain server-only, customer-photo bytes and access URLs are never persisted, and all terminal/expiry cleanup paths are recoverable.
+- The existing product/colour picker and visual presentation remain intact; cart addition requires a valid chosen variant and size.
+- Phase 9 remains functional, Phase 13 reports unavailable, and every implemented production service uses Express rather than fake data.
+- **Phase 10 tests, the full backend suite, backend build/type-check, frontend type-check/build and repository audits pass.**
 
 ---
 

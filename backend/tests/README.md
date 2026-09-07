@@ -69,3 +69,10 @@ gate is verified rather than assumed.
 | `errorHandling.test.ts` | 404 shape, internal 500 shape, no stack-trace leakage, diagnostics gating, malformed JSON, helmet/CORS headers |
 | `databaseIsolation.test.ts` | in-memory database, test database name, no Atlas URI reachable, empty database, no models registered yet |
 | `lifecycle.test.ts` | graceful shutdown — close/disconnect/exit order, exit codes, idempotency, disconnect after a failed close, timeout backstop, SIGINT/SIGTERM/rejection/exception wiring |
+
+## Phase 10 provider isolation
+
+`virtualTryOn.test.ts` drives the real Express orchestration against injected Pixelcut and
+Cloudinary doubles. `virtualTryOnProvider.test.ts` verifies the real adapters' documented HTTP
+and signed-delivery mappings with mocked transports. The suite never sends a live Pixelcut
+generation request and never uploads to a real Cloudinary account.

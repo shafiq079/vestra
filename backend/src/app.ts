@@ -15,6 +15,7 @@ import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import { createApiRouter } from './routes';
+import { createDefaultVirtualTryOnDependencies, type VirtualTryOnDependencies } from './services/virtualTryOnService';
 
 /** Ceiling on JSON/urlencoded bodies — a basic denial-of-service guard. */
 const BODY_SIZE_LIMIT = '1mb';
@@ -25,10 +26,13 @@ export interface CreateAppOptions {
    * Defaults to true under NODE_ENV=test and false everywhere else.
    */
   enableDiagnostics?: boolean;
+  /** Test seam for Pixelcut and Cloudinary doubles. */
+  virtualTryOn?: VirtualTryOnDependencies;
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
   const enableDiagnostics = options.enableDiagnostics ?? env.isTest;
+  const virtualTryOn = options.virtualTryOn ?? createDefaultVirtualTryOnDependencies();
 
   const app = express();
 
@@ -63,7 +67,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use(express.json({ limit: BODY_SIZE_LIMIT }));
   app.use(express.urlencoded({ extended: true, limit: BODY_SIZE_LIMIT }));
 
-  app.use('/api', createApiRouter({ enableDiagnostics }));
+  app.use('/api', createApiRouter({ enableDiagnostics, virtualTryOn }));
 
   // Order matters: unmatched routes become a 404 HttpError, then every error —
   // 404s included — is rendered as `{ code, message, details? }`.

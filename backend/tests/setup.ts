@@ -37,6 +37,18 @@ process.env.JWT_SECRET = 'test-only-jwt-secret-that-is-at-least-32-characters';
 process.env.JWT_ACCESS_TTL_SECONDS = '900';
 process.env.BCRYPT_ROUNDS = '4';
 process.env.REFRESH_TOKEN_TTL_DAYS = '7';
+process.env.PIXELCUT_API_KEY = 'test-pixelcut-key';
+process.env.CLOUDINARY_CLOUD_NAME = 'test-cloud';
+process.env.CLOUDINARY_API_KEY = 'test-cloudinary-key';
+process.env.CLOUDINARY_API_SECRET = 'test-cloudinary-secret';
+process.env.VTO_DAILY_QUOTA = '5';
+process.env.VTO_CONCURRENT_LIMIT = '1';
+process.env.VTO_RATE_LIMIT_WINDOW_SECONDS = '60';
+process.env.VTO_RATE_LIMIT_MAX_REQUESTS = '100';
+process.env.VTO_PROVIDER_TIMEOUT_MS = '1000';
+process.env.VTO_JOB_DEADLINE_SECONDS = '600';
+process.env.VTO_SOURCE_URL_TTL_SECONDS = '900';
+process.env.VTO_RECONCILE_INTERVAL_SECONDS = '60';
 
 // ---------------------------------------------------------------------------
 

@@ -2,7 +2,6 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiError } from '../types';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false';
 export const AUTH_TOKEN_KEY = 'vestra-auth-token';
 export const REFRESH_TOKEN_KEY = 'vestra-refresh-token';
 export const GUEST_CART_KEY = 'vestra-guest-cart-id';
@@ -87,7 +86,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ code?: string; message?: string; details?: Record<string, string[]> }>) => {
     const original = error.config as RetriableConfig | undefined;
-    if (!USE_MOCK_API && error.response?.status === 401 && mayRefresh(original) && localStorage.getItem(REFRESH_TOKEN_KEY)) {
+    if (error.response?.status === 401 && mayRefresh(original) && localStorage.getItem(REFRESH_TOKEN_KEY)) {
       original._retried = true;
       try {
         const currentToken = localStorage.getItem(AUTH_TOKEN_KEY);

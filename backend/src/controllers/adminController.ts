@@ -2,6 +2,8 @@ import type { Request, RequestHandler } from 'express';
 import * as service from '../services/adminService';
 import { parseBody } from '../validators/shared';
 import { activeBody, bulkDeleteBody, bulkPublishedBody, categoryCreate, categoryUpdate, moderationBody, parseId, parseProductCreate, parseProductUpdate, publishedBody, statusBody, stockBody } from '../validators/admin';
+import type { ImageStorage } from '../services/cloudinaryImageStorage';
+import { validateImageUpload } from '../services/imageValidationService';
 
 const param = (value: string | string[] | undefined) => Array.isArray(value) ? value[0]! : value!;
 const actor = (req: Request) => req.auth!.userId;
@@ -30,3 +32,10 @@ export const status: RequestHandler = async(req,res)=>res.json(await service.set
 export const reviews: RequestHandler = async(_req,res)=>res.json(await service.listReviews());
 export const moderation: RequestHandler = async(req,res)=>res.json(await service.moderateReview(parseId(param(req.params.reviewId),'reviewId'),parseBody(moderationBody,req.body,'Invalid moderation request.'),actor(req)));
 export const promotions: RequestHandler = (_req,res)=>res.json(service.listPromotions());
+export const uploadImage = (storage: ImageStorage): RequestHandler => async(req,res) => {
+  const image = validateImageUpload(req.file);
+  const asset = await storage.uploadCatalogue(image);
+  res.status(201).json({ url: asset.secureUrl, alt: '', position: 0, isLifestyle: false,
+    isTryOnReady: false, cloudinaryAssetId: asset.assetId, cloudinaryPublicId: asset.publicId,
+    cloudinaryVersion: asset.version, cloudinaryFormat: asset.format });
+};
