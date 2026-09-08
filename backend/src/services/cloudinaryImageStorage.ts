@@ -19,7 +19,7 @@ export interface StoredImageAsset {
 }
 
 export interface ImageStorage {
-  uploadTemporary(image: ValidatedImage): Promise<StoredImageAsset>;
+  uploadTemporary(image: ValidatedImage, publicId: string): Promise<StoredImageAsset>;
   uploadCatalogue(image: ValidatedImage): Promise<StoredImageAsset>;
   temporaryAccessUrl(asset: StoredImageAsset, expiresAt: Date): string;
   delete(asset: Pick<StoredImageAsset, 'publicId' | 'deliveryType'>): Promise<void>;
@@ -69,8 +69,17 @@ export class CloudinaryImageStorage implements ImageStorage {
     return assetFrom(result, deliveryType);
   }
 
-  uploadTemporary(image: ValidatedImage) {
-    return this.upload(image, 'vestra/vto-temporary', 'private');
+  async uploadTemporary(image: ValidatedImage, publicId: string) {
+    if (!/^vestra\/vto-temporary\/[0-9a-f-]{36}$/i.test(publicId)) {
+      throw new Error('Temporary uploads require a VESTRA-generated public ID.');
+    }
+    const result = await this.transport.upload(image.buffer, {
+      resource_type: 'image', type: 'private', public_id: publicId,
+      overwrite: false, unique_filename: false, use_filename: false,
+    });
+    const stored = assetFrom(result, 'private');
+    if (stored.publicId !== publicId) throw new Error('Cloudinary returned an unexpected temporary public ID.');
+    return stored;
   }
 
   uploadCatalogue(image: ValidatedImage) {

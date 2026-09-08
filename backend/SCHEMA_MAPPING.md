@@ -11,7 +11,10 @@ download URL, raw provider payloads, credentials, body measurements, and provide
 are never persisted. Result URLs are temporary provider references and carry an explicit expiry.
 
 `VirtualTryOnQuota` atomically tracks UTC-day starts, active reservations and successful
-completions per opaque owner. `VirtualTryOnRateLimit` is a TTL-backed fixed-window counter.
+completions per opaque owner. Per-job active/released IDs make quota release idempotent across
+crashes. `VirtualTryOnAssetCleanup` is a separate durable, lease-based ledger for each temporary
+Cloudinary public ID; it records only deletion state, retry timing and the quota-release marker.
+`VirtualTryOnRateLimit` is a TTL-backed fixed-window counter.
 Guest job access requires both the browser's session UUID and a per-job random capability whose
 HMAC is stored; authenticated job access is scoped to `ownerUserId`.
 

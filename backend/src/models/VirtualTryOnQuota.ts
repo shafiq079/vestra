@@ -6,6 +6,8 @@ const virtualTryOnQuotaSchema = new Schema({
   startedCount: { type: Number, required: true, min: 0, default: 0 },
   completedCount: { type: Number, required: true, min: 0, default: 0 },
   activeCount: { type: Number, required: true, min: 0, default: 0 },
+  activeJobIds: { type: [Schema.Types.ObjectId], required: true, default: [], select: false },
+  releasedJobIds: { type: [Schema.Types.ObjectId], required: true, default: [], select: false },
 }, { timestamps: true });
 virtualTryOnQuotaSchema.index({ ownerKey: 1, day: 1 }, { unique: true });
 

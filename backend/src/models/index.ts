@@ -12,3 +12,4 @@ export * from './AuthSession';
 export * from './AdminAuditLog';
 export * from './VirtualTryOnJob';
 export * from './VirtualTryOnQuota';
+export * from './VirtualTryOnAssetCleanup';

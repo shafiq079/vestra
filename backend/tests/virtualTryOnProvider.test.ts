@@ -60,14 +60,14 @@ describe('Pixelcut provider adapter', () => {
 
 describe('Cloudinary storage adapter', () => {
   const image: ValidatedImage = { buffer: Buffer.from('image'), format: 'png', contentType: 'image/png', width: 100, height: 120, bytes: 5 };
-  const uploadResult = { asset_id: 'asset', public_id: 'vestra/id', format: 'png', secure_url: 'https://res.cloudinary.com/test/image/upload/v1/id.png', version: 1, width: 100, height: 120, bytes: 5 } as never;
+  const uploadResult = { asset_id: 'asset', public_id: 'vestra/id', format: 'png', secure_url: 'https://res.cloudinary.com/test/image/upload/v1/id.png', version: 1, width: 100, height: 120, bytes: 5 };
   it('separates private temporary uploads from public catalogue uploads and generates an expiring private download URL', async () => {
-    const transport: CloudinaryTransport = { upload: vi.fn().mockResolvedValue(uploadResult), privateDownloadUrl: vi.fn().mockReturnValue('https://api.cloudinary.com/timed'), destroy: vi.fn().mockResolvedValue({ result: 'ok' }) };
+    const transport: CloudinaryTransport = { upload: vi.fn().mockImplementation((_buffer, options) => Promise.resolve({ ...uploadResult, public_id: options.public_id ?? 'vestra/id' })), privateDownloadUrl: vi.fn().mockReturnValue('https://api.cloudinary.com/timed'), destroy: vi.fn().mockResolvedValue({ result: 'ok' }) };
     const storage = new CloudinaryImageStorage(transport);
-    const temporary = await storage.uploadTemporary(image); const catalogue = await storage.uploadCatalogue(image);
+    const temporary = await storage.uploadTemporary(image, 'vestra/vto-temporary/00000000-0000-4000-8000-000000000000'); const catalogue = await storage.uploadCatalogue(image);
     const expiresAt = new Date('2026-09-08T12:15:00Z');
     expect(storage.temporaryAccessUrl(temporary, expiresAt)).toBe('https://api.cloudinary.com/timed');
-    expect(transport.upload).toHaveBeenNthCalledWith(1, image.buffer, expect.objectContaining({ type: 'private', folder: 'vestra/vto-temporary', overwrite: false }));
+    expect(transport.upload).toHaveBeenNthCalledWith(1, image.buffer, expect.objectContaining({ type: 'private', public_id: 'vestra/vto-temporary/00000000-0000-4000-8000-000000000000', overwrite: false }));
     expect(transport.upload).toHaveBeenNthCalledWith(2, image.buffer, expect.objectContaining({ type: 'upload', folder: 'vestra/catalogue', overwrite: false }));
     expect(transport.privateDownloadUrl).toHaveBeenCalledWith(temporary.publicId, 'png', { resource_type: 'image', type: 'private', expires_at: 1788869700, attachment: false });
     expect(catalogue.deliveryType).toBe('upload');

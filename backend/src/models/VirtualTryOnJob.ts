@@ -27,6 +27,7 @@ const virtualTryOnJobSchema = new Schema({
   garmentImageUrl: { type: String, required: true, select: false },
   provider: { type: String, enum: ['pixelcut'], required: true, default: 'pixelcut' },
   providerJobId: { type: String, select: false },
+  providerSubmittedAt: { type: Date, select: false },
   submissionState: { type: String, enum: ['reserved', 'submitted', 'uncertain'], required: true, default: 'reserved', select: false },
   status: { type: String, enum: VTO_JOB_STATUSES, required: true, default: 'pending' },
   resultUrl: { type: String },
@@ -34,10 +35,6 @@ const virtualTryOnJobSchema = new Schema({
   errorCode: { type: String },
   temporaryAsset: { type: temporaryAssetSchema, required: true, select: false },
   sourceAccessExpiresAt: { type: Date, required: true, select: false },
-  cleanupStatus: { type: String, enum: ['pending', 'deleted'], required: true, default: 'pending', select: false },
-  cleanupAttempts: { type: Number, required: true, default: 0, min: 0, select: false },
-  cleanupNextAttemptAt: { type: Date, required: true, select: false },
-  cleanedAt: { type: Date, select: false },
   quotaDay: { type: String, required: true, select: false },
   reservationReleased: { type: Boolean, required: true, default: false, select: false },
   consent: {
@@ -51,7 +48,6 @@ const virtualTryOnJobSchema = new Schema({
 
 virtualTryOnJobSchema.index({ ownerKey: 1, idempotencyKey: 1 }, { unique: true });
 virtualTryOnJobSchema.index({ status: 1, deadlineAt: 1 });
-virtualTryOnJobSchema.index({ cleanupStatus: 1, cleanupNextAttemptAt: 1 });
 virtualTryOnJobSchema.index({ ownerUserId: 1, createdAt: -1 });
 
 export type VirtualTryOnJobShape = InferSchemaType<typeof virtualTryOnJobSchema>;

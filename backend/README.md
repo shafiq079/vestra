@@ -24,10 +24,13 @@ storage or provider submission.
 
 Customer photos use random, non-identifying public IDs in `vestra/vto-temporary`, Cloudinary
 `private` delivery, and an expiring authenticated download URL that remains reachable by
-Pixelcut during asynchronous work. Completion, failure, cancellation and deadline paths delete
-the source; a startup/interval reconciler retries failed cleanup and handles abandoned jobs.
-MongoDB stores deletion metadata but never image bytes, base64, or the expiring source URL.
-Pixelcut result URLs are exposed only to the job owner and treated as expiring after one hour.
+Pixelcut during asynchronous work. A durable cleanup ledger is written before each upload, so
+uploads remain recoverable even if job persistence or deletion fails. Completion, failure,
+cancellation and deadline paths delete the source; a startup/interval reconciler retries failed
+cleanup and handles abandoned jobs. MongoDB stores deletion metadata but never image bytes,
+base64, or the expiring source URL.
+Pixelcut result URLs are exposed only to the job owner and treated as expiring after one hour
+from provider submission; expired URLs are removed from responses and persistence.
 
 Authenticated jobs are user-scoped. Guest jobs require a session UUID plus an unguessable
 per-job capability. Invalid bearer tokens never downgrade to guest access. Persistent atomic

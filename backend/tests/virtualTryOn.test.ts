@@ -4,7 +4,7 @@ import type { Test } from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app';
 import { env } from '../src/config/env';
-import { Product, VirtualTryOnJob, VirtualTryOnQuota, VirtualTryOnRateLimit } from '../src/models';
+import { Product, VirtualTryOnAssetCleanup, VirtualTryOnJob, VirtualTryOnQuota, VirtualTryOnRateLimit } from '../src/models';
 import type { ImageStorage, StoredImageAsset } from '../src/services/cloudinaryImageStorage';
 import { dashboard } from '../src/services/adminService';
 import { reconcileVirtualTryOnJobs, type VirtualTryOnDependencies } from '../src/services/virtualTryOnService';
@@ -31,6 +31,12 @@ function doubles() {
   return { deps, provider, imageStorage, advance: (milliseconds: number) => { clock = new Date(clock.getTime() + milliseconds); } };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
 async function readyProduct(overrides: Record<string, unknown> = {}) {
   return Product.create(productFixture({ tryOnEligible: true, isPublished: true, colours: ['Black', 'Red'], availableSizes: ['M'],
     images: [{ url: 'https://res.cloudinary.com/test/image/upload/garment-black.png', alt: 'Black garment', position: 0, isLifestyle: false, colour: 'Black', isTryOnReady: true }],
@@ -43,8 +49,8 @@ function guestPost(app: ReturnType<typeof createApp>, productId: string, session
 }
 
 beforeEach(async () => {
-  await Promise.all([VirtualTryOnJob.init(), VirtualTryOnQuota.init(), VirtualTryOnRateLimit.init()]);
-  await Promise.all([VirtualTryOnJob.deleteMany({}), VirtualTryOnQuota.deleteMany({}), VirtualTryOnRateLimit.deleteMany({}), Product.deleteMany({})]);
+  await Promise.all([VirtualTryOnJob.init(), VirtualTryOnAssetCleanup.init(), VirtualTryOnQuota.init(), VirtualTryOnRateLimit.init()]);
+  await Promise.all([VirtualTryOnJob.deleteMany({}), VirtualTryOnAssetCleanup.deleteMany({}), VirtualTryOnQuota.deleteMany({}), VirtualTryOnRateLimit.deleteMany({}), Product.deleteMany({})]);
 });
 
 describe('Phase 10 Virtual Try-On API', () => {
@@ -175,7 +181,103 @@ describe('Phase 10 Virtual Try-On API', () => {
     const status = await request(app).get(`/api/virtual-try-on/jobs/${created.body.id}`).set('X-VTO-Session-Id', session).set('X-VTO-Job-Token', created.body.accessToken);
     expect(status.body).toMatchObject({ status: 'failed', error: { code: 'VTO_DEADLINE_EXCEEDED' } }); expect(test.provider.cancel).toHaveBeenCalledTimes(1);
     test.advance(31_000); await reconcileVirtualTryOnJobs(test.deps); expect(test.imageStorage.delete).toHaveBeenCalledTimes(2);
-    expect((await VirtualTryOnJob.findById(created.body.id).select('+cleanupStatus'))?.cleanupStatus).toBe('deleted');
+    expect((await VirtualTryOnAssetCleanup.findOne({ jobId: created.body.id }))?.status).toBe('deleted');
+  });
+
+  it('recovers idempotently when quota was released but the job release marker was not persisted', async () => {
+    const product = await readyProduct(); const test = doubles();
+    vi.mocked(test.provider.status).mockResolvedValue({ status: 'completed', resultUrl: 'https://assets.pixelcut.app/public/result/quota.jpg' });
+    const app = createApp({ virtualTryOn: test.deps }); const session = randomUUID(); const created = await guestPost(app, product.id, session);
+    await request(app).get(`/api/virtual-try-on/jobs/${created.body.id}`).set('X-VTO-Session-Id', session).set('X-VTO-Job-Token', created.body.accessToken);
+
+    await VirtualTryOnJob.updateOne({ _id: created.body.id }, { $set: { reservationReleased: false } });
+    await VirtualTryOnAssetCleanup.updateOne({ jobId: created.body.id }, { $set: { quotaReleased: false } });
+    await reconcileVirtualTryOnJobs(test.deps);
+
+    const quota = await VirtualTryOnQuota.findOne({}).select('+activeJobIds +releasedJobIds');
+    const job = await VirtualTryOnJob.findById(created.body.id).select('+reservationReleased');
+    expect(quota).toMatchObject({ activeCount: 0, completedCount: 1 });
+    expect(quota?.activeJobIds).toHaveLength(0); expect(quota?.releasedJobIds).toHaveLength(1);
+    expect(job?.reservationReleased).toBe(true);
+
+    await VirtualTryOnJob.updateOne({ _id: created.body.id }, { $set: { reservationReleased: true } });
+    await VirtualTryOnAssetCleanup.updateOne({ jobId: created.body.id }, { $set: { quotaReleased: false } });
+    await reconcileVirtualTryOnJobs(test.deps);
+    expect((await VirtualTryOnAssetCleanup.findOne({ jobId: created.body.id }).select('+quotaReleased'))?.quotaReleased).toBe(true);
+  });
+
+  it.each([
+    ['database error', new Error('job persistence unavailable'), 500],
+    ['duplicate-key error', Object.assign(new Error('duplicate key'), { code: 11000 }), 409],
+  ])('keeps a durable cleanup record after a %s and a failed first deletion', async (_label, persistenceError, expectedStatus) => {
+    const product = await readyProduct(); const test = doubles();
+    vi.mocked(test.imageStorage.delete).mockRejectedValueOnce(new Error('Cloudinary deletion unavailable')).mockResolvedValue(undefined);
+    const create = vi.spyOn(VirtualTryOnJob, 'create').mockRejectedValueOnce(persistenceError);
+    const response = await guestPost(createApp({ virtualTryOn: test.deps }), product.id);
+    create.mockRestore();
+
+    expect(response.status).toBe(expectedStatus); expect(test.imageStorage.delete).toHaveBeenCalledTimes(1);
+    const cleanup = await VirtualTryOnAssetCleanup.findOne({});
+    expect(cleanup).toMatchObject({ status: 'pending', attempts: 1 });
+    expect(cleanup?.publicId).toMatch(/^vestra\/vto-temporary\/[0-9a-f-]{36}$/i);
+
+    test.advance(31_000); await reconcileVirtualTryOnJobs(test.deps);
+    expect(test.imageStorage.delete).toHaveBeenCalledTimes(2);
+    expect((await VirtualTryOnAssetCleanup.findById(cleanup?._id))?.status).toBe('deleted');
+    expect((await VirtualTryOnQuota.findOne({}))?.activeCount).toBe(0);
+  });
+
+  it('does not let a stale completed poll overwrite a concurrent cancellation', async () => {
+    const product = await readyProduct(); const test = doubles(); const statusGate = deferred<Awaited<ReturnType<VirtualTryOnProvider['status']>>>();
+    vi.mocked(test.provider.status).mockReturnValue(statusGate.promise);
+    const app = createApp({ virtualTryOn: test.deps }); const session = randomUUID(); const created = await guestPost(app, product.id, session);
+    const headers = { 'X-VTO-Session-Id': session, 'X-VTO-Job-Token': created.body.accessToken };
+    const polling = request(app).get(`/api/virtual-try-on/jobs/${created.body.id}`).set(headers);
+    const pollingResponse = polling.then((value) => value);
+    await vi.waitFor(() => expect(test.provider.status).toHaveBeenCalledTimes(1));
+
+    const cancelled = await request(app).post(`/api/virtual-try-on/jobs/${created.body.id}/cancel`).set(headers);
+    statusGate.resolve({ status: 'completed', resultUrl: 'https://assets.pixelcut.app/public/result/stale.jpg' });
+    const stalePoll = await pollingResponse;
+
+    expect(cancelled.body.status).toBe('cancelled'); expect(stalePoll.body.status).toBe('cancelled');
+    expect(stalePoll.body.resultImage).toBeUndefined(); expect(test.imageStorage.delete).toHaveBeenCalledTimes(1);
+    expect(await VirtualTryOnJob.findById(created.body.id).select('+reservationReleased')).toMatchObject({ status: 'cancelled', reservationReleased: true });
+    expect(await VirtualTryOnQuota.findOne({})).toMatchObject({ activeCount: 0, completedCount: 0 });
+  });
+
+  it('does not let a stale cancellation overwrite a concurrently completed poll', async () => {
+    const product = await readyProduct(); const test = doubles(); const cancelGate = deferred<void>();
+    vi.mocked(test.provider.cancel).mockReturnValue(cancelGate.promise);
+    vi.mocked(test.provider.status).mockResolvedValue({ status: 'completed', resultUrl: 'https://assets.pixelcut.app/public/result/winner.jpg' });
+    const app = createApp({ virtualTryOn: test.deps }); const session = randomUUID(); const created = await guestPost(app, product.id, session);
+    const headers = { 'X-VTO-Session-Id': session, 'X-VTO-Job-Token': created.body.accessToken };
+    const cancelling = request(app).post(`/api/virtual-try-on/jobs/${created.body.id}/cancel`).set(headers).then((value) => value);
+    await vi.waitFor(() => expect(test.provider.cancel).toHaveBeenCalledTimes(1));
+
+    const completed = await request(app).get(`/api/virtual-try-on/jobs/${created.body.id}`).set(headers);
+    cancelGate.resolve(); const staleCancel = await cancelling;
+
+    expect(completed.body).toMatchObject({ status: 'completed', resultImage: 'https://assets.pixelcut.app/public/result/winner.jpg' });
+    expect(staleCancel.body.status).toBe('completed'); expect(test.imageStorage.delete).toHaveBeenCalledTimes(1);
+    expect(await VirtualTryOnQuota.findOne({})).toMatchObject({ activeCount: 0, completedCount: 1 });
+  });
+
+  it('anchors the one-hour result lifetime to provider submission and never returns an expired URL', async () => {
+    const product = await readyProduct(); const test = doubles();
+    vi.mocked(test.provider.status).mockResolvedValue({ status: 'completed', resultUrl: 'https://assets.pixelcut.app/public/result/expiring.jpg' });
+    const app = createApp({ virtualTryOn: test.deps }); const session = randomUUID(); const created = await guestPost(app, product.id, session);
+    const headers = { 'X-VTO-Session-Id': session, 'X-VTO-Job-Token': created.body.accessToken };
+    test.advance(5 * 60 * 1000);
+    const completed = await request(app).get(`/api/virtual-try-on/jobs/${created.body.id}`).set(headers);
+    expect(completed.body.resultExpiresAt).toBe('2026-09-08T13:00:00.000Z');
+
+    test.advance(56 * 60 * 1000);
+    const expired = await request(app).get(`/api/virtual-try-on/jobs/${created.body.id}`).set(headers);
+    expect(expired.body.status).toBe('completed'); expect(expired.body.resultImage).toBeUndefined();
+    expect(expired.body.resultExpiresAt).toBeUndefined();
+    expect(expired.body.error).toEqual({ code: 'VTO_RESULT_EXPIRED', message: 'This temporary Virtual Try-On preview has expired.' });
+    expect(JSON.stringify(await VirtualTryOnJob.findById(created.body.id))).not.toContain('expiring.jpg');
   });
 
   it('persists repeatable feedback and reports completed usage/helpful rate while size ML remains zero', async () => {

@@ -1,4 +1,5 @@
 import { env } from '../config/env';
+import { Types } from 'mongoose';
 import { VirtualTryOnQuota, VirtualTryOnRateLimit } from '../models';
 import { HttpError } from '../utils/httpError';
 
@@ -35,16 +36,17 @@ async function consumeRateLimit(ownerKey: string, now: Date): Promise<void> {
   }
 }
 
-export async function reserveQuota(ownerKey: string, rateOwnerKey: string, now: Date): Promise<QuotaReservation> {
+export async function reserveQuota(ownerKey: string, rateOwnerKey: string, now: Date, jobId: Types.ObjectId): Promise<QuotaReservation> {
   await consumeRateLimit(rateOwnerKey, now);
   const day = dayKey(now);
   const updated = await VirtualTryOnQuota.findOneAndUpdate(
     { ownerKey, day, startedCount: { $lt: env.VTO_DAILY_QUOTA }, activeCount: { $lt: env.VTO_CONCURRENT_LIMIT } },
-    { $inc: { startedCount: 1, activeCount: 1 } }, { new: true },
+    { $inc: { startedCount: 1, activeCount: 1 }, $addToSet: { activeJobIds: jobId } }, { new: true },
   );
   if (updated) return { ownerKey, day };
   try {
-    await VirtualTryOnQuota.create({ ownerKey, day, startedCount: 1, activeCount: 1, completedCount: 0 });
+    await VirtualTryOnQuota.create({ ownerKey, day, startedCount: 1, activeCount: 1, completedCount: 0,
+      activeJobIds: [jobId], releasedJobIds: [] });
     return { ownerKey, day };
   } catch (error) {
     if ((error as { code?: number }).code !== 11000) throw error;
@@ -56,8 +58,14 @@ export async function reserveQuota(ownerKey: string, rateOwnerKey: string, now: 
   throw new HttpError(429, 'VTO_DAILY_QUOTA_EXCEEDED', 'The daily Virtual Try-On limit has been reached.');
 }
 
-export async function releaseQuota(ownerKey: string, day: string, completed: boolean): Promise<void> {
-  await VirtualTryOnQuota.updateOne({ ownerKey, day, activeCount: { $gt: 0 } }, {
+export async function releaseQuota(ownerKey: string, day: string, jobId: Types.ObjectId, completed: boolean): Promise<void> {
+  const released = await VirtualTryOnQuota.updateOne({ ownerKey, day, activeCount: { $gt: 0 }, activeJobIds: jobId }, {
     $inc: { activeCount: -1, ...(completed ? { completedCount: 1 } : {}) },
+    $pull: { activeJobIds: jobId },
+    $addToSet: { releasedJobIds: jobId },
   });
+  if (released.modifiedCount === 1) return;
+
+  const alreadyReleased = await VirtualTryOnQuota.exists({ ownerKey, day, releasedJobIds: jobId });
+  if (!alreadyReleased) throw new Error('Virtual Try-On quota reservation could not be released.');
 }

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   AdminAuditLog, AuthSession, Cart, Category, Collection, DeliveryOption, MeasurementProfile, Order,
-  Product, Review, User, VirtualTryOnJob, VirtualTryOnQuota, VirtualTryOnRateLimit, WishlistItem,
+  Product, Review, User, VirtualTryOnAssetCleanup, VirtualTryOnJob, VirtualTryOnQuota, VirtualTryOnRateLimit, WishlistItem,
 } from '../src/models';
 import {
   cartFixture, categoryFixture, collectionFixture, deliveryOptionFixture,
@@ -14,7 +14,7 @@ beforeAll(async () => {
   await Promise.all([
     User, MeasurementProfile, Product, Category, Collection, Review,
     Cart, WishlistItem, Order, DeliveryOption, AuthSession, AdminAuditLog,
-    VirtualTryOnJob, VirtualTryOnQuota, VirtualTryOnRateLimit,
+    VirtualTryOnAssetCleanup, VirtualTryOnJob, VirtualTryOnQuota, VirtualTryOnRateLimit,
   ].map((registeredModel) => registeredModel.syncIndexes()));
 });
 
@@ -22,7 +22,7 @@ describe('Phase 2 models', () => {
   it('registers every model once', async () => {
     expect(Object.keys(mongoose.models).sort()).toEqual([
       'AdminAuditLog', 'AuthSession', 'Cart', 'Category', 'Collection', 'DeliveryOption', 'MeasurementProfile',
-      'Order', 'Product', 'Review', 'User', 'VirtualTryOnJob', 'VirtualTryOnQuota',
+      'Order', 'Product', 'Review', 'User', 'VirtualTryOnAssetCleanup', 'VirtualTryOnJob', 'VirtualTryOnQuota',
       'VirtualTryOnRateLimit', 'WishlistItem',
     ].sort());
     await expect(import('../src/models/index.js')).resolves.toBeDefined();
