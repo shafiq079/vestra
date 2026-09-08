@@ -19,7 +19,7 @@ export function SizeGuidePage() {
   return (
     <div className="container-vestra py-12 lg:py-20 max-w-3xl mx-auto">
       <h1 className="font-display text-4xl lg:text-5xl mb-4 text-center">Size Guide</h1>
-      <p className="text-muted-foreground text-center mb-12">All measurements are in centimetres. For the best fit, use our AI size recommendation tool on each product page.</p>
+      <p className="text-muted-foreground text-center mb-12">All measurements are in centimetres. Use these charts as general guidance; automated ML size recommendation is not yet available.</p>
 
       <section className="mb-12">
         <h2 className="font-display text-2xl mb-6">Women's Size Guide</h2>
@@ -83,7 +83,7 @@ export function SizeGuidePage() {
           <li><strong className="text-foreground">Hips:</strong> Measure around the fullest part of your hips, approximately 20cm below your waist.</li>
           <li><strong className="text-foreground">Inseam:</strong> Measure from the top of your inner thigh to your ankle.</li>
         </ul>
-        <p className="text-sm text-muted-foreground mt-4">For a personalised recommendation, save your measurements in your account and use the size recommendation tool on any eligible product.</p>
+        <p className="text-sm text-muted-foreground mt-4">You may save measurements in your account for future fit tools. Until Phase 13, choose sizes using the product details and these charts.</p>
       </section>
     </div>
   );

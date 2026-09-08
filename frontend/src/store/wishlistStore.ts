@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Product, WishlistItem } from '../types';
-import { AUTH_TOKEN_KEY, USE_MOCK_API } from '../services/apiClient';
+import { AUTH_TOKEN_KEY } from '../services/apiClient';
 import * as service from '../services/wishlistService';
 
 interface WishlistState {
@@ -27,10 +27,10 @@ export const useWishlistStore = create<WishlistState>()(persist((set, get) => ({
   items: [],
   guestItems: [],
   hydrate: async () => {
-    if (!USE_MOCK_API && localStorage.getItem(AUTH_TOKEN_KEY)) set({ items: itemsFrom(await service.getWishlist()) });
+    if (localStorage.getItem(AUTH_TOKEN_KEY)) set({ items: itemsFrom(await service.getWishlist()) });
   },
   mergeGuestWishlist: async () => {
-    if (USE_MOCK_API || !localStorage.getItem(AUTH_TOKEN_KEY)) return;
+    if (!localStorage.getItem(AUTH_TOKEN_KEY)) return;
     const guestItems = [...get().guestItems];
     const serverProducts = await service.getWishlist();
     const serverIds = new Set(serverProducts.map((product) => product.id));
@@ -46,22 +46,22 @@ export const useWishlistStore = create<WishlistState>()(persist((set, get) => ({
   addItem: async (product) => { if (!get().hasItem(product.id)) await get().toggleItem(product); },
   removeItem: async (id) => { const item = get().items.find((entry) => entry.productId === id); if (item) await get().toggleItem(item.product); },
   toggleItem: async (product) => {
-    if (!USE_MOCK_API && localStorage.getItem(AUTH_TOKEN_KEY)) {
-      set({ items: itemsFrom(await service.toggleWishlist(product.id) ?? []) });
+    if (localStorage.getItem(AUTH_TOKEN_KEY)) {
+      set({ items: itemsFrom(await service.toggleWishlist(product.id)) });
       return;
     }
     set((state) => {
       const items = state.items.some((item) => item.productId === product.id)
         ? state.items.filter((item) => item.productId !== product.id)
         : [...state.items, { id: product.id, productId: product.id, product, addedAt: new Date().toISOString() }];
-      return USE_MOCK_API ? { items } : { items, guestItems: items };
+      return { items, guestItems: items };
     });
   },
   handleLogout: () => {
-    if (!USE_MOCK_API) set((state) => ({ items: state.guestItems }));
+    set((state) => ({ items: state.guestItems }));
   },
   hasItem: (id) => get().items.some((item) => item.productId === id),
 }), {
   name: 'vestra-wishlist',
-  partialize: (state) => USE_MOCK_API ? { items: state.items, guestItems: [] } : { items: state.guestItems, guestItems: state.guestItems },
+  partialize: (state) => ({ items: state.guestItems, guestItems: state.guestItems }),
 }));

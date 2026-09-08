@@ -22,7 +22,7 @@ export function AccessibilityPage() {
         </section>
         <section>
           <h2 className="font-display text-xl text-foreground mb-2">AI Feature Accessibility</h2>
-          <p>Our size recommendation tool does not require a photo upload and is fully accessible. The virtual try-on requires image upload; we provide detailed text descriptions of each garment as an alternative.</p>
+          <p>The planned size recommendation tool will not require a photo upload, but its Phase 13 ML service is not yet available. Virtual Try-On requires an image upload; detailed garment descriptions provide a non-image alternative.</p>
         </section>
         <section>
           <h2 className="font-display text-xl text-foreground mb-2">Feedback</h2>

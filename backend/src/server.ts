@@ -12,16 +12,27 @@
 
 import http from 'node:http';
 
-import { app } from './app';
+import { createApp } from './app';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { env } from './config/env';
 import { createShutdownHandler, registerLifecycleHandlers } from './lifecycle';
 import { logger } from './utils/logger';
+import { createDefaultVirtualTryOnDependencies, reconcileVirtualTryOnJobs } from './services/virtualTryOnService';
 
 async function start(): Promise<void> {
   logger.info(`Starting VESTRA backend in ${env.NODE_ENV} mode`);
 
   await connectDatabase();
+
+  const virtualTryOn = createDefaultVirtualTryOnDependencies();
+  const app = createApp({ virtualTryOn });
+  await reconcileVirtualTryOnJobs(virtualTryOn).catch(() => {
+    logger.warn('Initial Virtual Try-On reconciliation was deferred.');
+  });
+  const reconcileTimer = setInterval(() => {
+    void reconcileVirtualTryOnJobs(virtualTryOn).catch(() => logger.warn('Virtual Try-On reconciliation was deferred.'));
+  }, env.VTO_RECONCILE_INTERVAL_SECONDS * 1000);
+  reconcileTimer.unref?.();
 
   const server = http.createServer(app);
 
@@ -43,7 +54,7 @@ async function start(): Promise<void> {
   registerLifecycleHandlers(
     createShutdownHandler({
       server,
-      disconnect: disconnectDatabase,
+      disconnect: async () => { clearInterval(reconcileTimer); await disconnectDatabase(); },
       exit: (code) => process.exit(code),
     }),
   );

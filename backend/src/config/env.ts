@@ -26,6 +26,7 @@ dotenv.config({ quiet: true });
  */
 export const SENSITIVE_KEYS = new Set([
   'MONGODB_URI', 'JWT_SECRET', 'DEMO_CUSTOMER_PASSWORD', 'DEMO_ADMIN_PASSWORD',
+  'PIXELCUT_API_KEY', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
 ]);
 
 const MONGODB_URI_SCHEMES = ['mongodb://', 'mongodb+srv://'] as const;
@@ -52,6 +53,18 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
   DEMO_CUSTOMER_PASSWORD: z.string().min(8).max(128).optional(),
   DEMO_ADMIN_PASSWORD: z.string().min(8).max(128).optional(),
+  PIXELCUT_API_KEY: z.string().trim().min(1),
+  CLOUDINARY_CLOUD_NAME: z.string().trim().min(1),
+  CLOUDINARY_API_KEY: z.string().trim().min(1),
+  CLOUDINARY_API_SECRET: z.string().trim().min(1),
+  VTO_DAILY_QUOTA: z.coerce.number().int().positive().default(5),
+  VTO_CONCURRENT_LIMIT: z.coerce.number().int().positive().default(1),
+  VTO_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  VTO_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(5),
+  VTO_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
+  VTO_JOB_DEADLINE_SECONDS: z.coerce.number().int().min(60).max(3600).default(600),
+  VTO_SOURCE_URL_TTL_SECONDS: z.coerce.number().int().min(120).max(7200).default(900),
+  VTO_RECONCILE_INTERVAL_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
 });
 
 export type NodeEnvironment = z.infer<typeof envSchema>['NODE_ENV'];
@@ -68,6 +81,18 @@ export interface AppEnvironment {
   readonly REFRESH_TOKEN_TTL_DAYS: number;
   readonly DEMO_CUSTOMER_PASSWORD?: string;
   readonly DEMO_ADMIN_PASSWORD?: string;
+  readonly PIXELCUT_API_KEY: string;
+  readonly CLOUDINARY_CLOUD_NAME: string;
+  readonly CLOUDINARY_API_KEY: string;
+  readonly CLOUDINARY_API_SECRET: string;
+  readonly VTO_DAILY_QUOTA: number;
+  readonly VTO_CONCURRENT_LIMIT: number;
+  readonly VTO_RATE_LIMIT_WINDOW_SECONDS: number;
+  readonly VTO_RATE_LIMIT_MAX_REQUESTS: number;
+  readonly VTO_PROVIDER_TIMEOUT_MS: number;
+  readonly VTO_JOB_DEADLINE_SECONDS: number;
+  readonly VTO_SOURCE_URL_TTL_SECONDS: number;
+  readonly VTO_RECONCILE_INTERVAL_SECONDS: number;
   /** CORS_ORIGIN split into individual origins. */
   readonly corsOrigins: readonly string[];
   readonly isProduction: boolean;
@@ -96,6 +121,12 @@ function loadEnvironment(): AppEnvironment {
 
   if (!parsed.success) {
     throw new Error(formatIssues(parsed.error));
+  }
+
+  if (parsed.data.VTO_SOURCE_URL_TTL_SECONDS < parsed.data.VTO_JOB_DEADLINE_SECONDS + 60) {
+    throw new Error(
+      'Invalid backend environment configuration:\n  - VTO_SOURCE_URL_TTL_SECONDS: must be at least 60 seconds longer than VTO_JOB_DEADLINE_SECONDS',
+    );
   }
 
   const { NODE_ENV, PORT, MONGODB_URI, CORS_ORIGIN, ...auth } = parsed.data;
@@ -129,6 +160,18 @@ function loadEnvironment(): AppEnvironment {
     REFRESH_TOKEN_TTL_DAYS: auth.REFRESH_TOKEN_TTL_DAYS,
     ...(auth.DEMO_CUSTOMER_PASSWORD ? { DEMO_CUSTOMER_PASSWORD: auth.DEMO_CUSTOMER_PASSWORD } : {}),
     ...(auth.DEMO_ADMIN_PASSWORD ? { DEMO_ADMIN_PASSWORD: auth.DEMO_ADMIN_PASSWORD } : {}),
+    PIXELCUT_API_KEY: auth.PIXELCUT_API_KEY,
+    CLOUDINARY_CLOUD_NAME: auth.CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY: auth.CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET: auth.CLOUDINARY_API_SECRET,
+    VTO_DAILY_QUOTA: auth.VTO_DAILY_QUOTA,
+    VTO_CONCURRENT_LIMIT: auth.VTO_CONCURRENT_LIMIT,
+    VTO_RATE_LIMIT_WINDOW_SECONDS: auth.VTO_RATE_LIMIT_WINDOW_SECONDS,
+    VTO_RATE_LIMIT_MAX_REQUESTS: auth.VTO_RATE_LIMIT_MAX_REQUESTS,
+    VTO_PROVIDER_TIMEOUT_MS: auth.VTO_PROVIDER_TIMEOUT_MS,
+    VTO_JOB_DEADLINE_SECONDS: auth.VTO_JOB_DEADLINE_SECONDS,
+    VTO_SOURCE_URL_TTL_SECONDS: auth.VTO_SOURCE_URL_TTL_SECONDS,
+    VTO_RECONCILE_INTERVAL_SECONDS: auth.VTO_RECONCILE_INTERVAL_SECONDS,
     corsOrigins: Object.freeze(corsOrigins),
     isProduction: NODE_ENV === 'production',
     isTest: NODE_ENV === 'test',

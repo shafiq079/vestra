@@ -1,40 +1,47 @@
-# Phase 8 integration log
+# Phase 10 frontend integration log
 
-## Runtime switch
+## Production API authority
 
-- `VITE_USE_MOCK_API=false` selects the Express API at `VITE_API_BASE_URL` (default `http://localhost:5000/api`).
-- `VITE_USE_MOCK_API=true`, or omitting the variable, selects the existing offline demo repositories.
-- Real access and refresh tokens use `vestra-auth-token` and `vestra-refresh-token`. Guest carts use a lazily generated `vestra-guest-cart-id`, sent only on guest-capable cart/order requests and consumed after a successful merge.
+The owner retired `VITE_USE_MOCK_API` in Phase 10. Every implemented domain now uses the Express
+API at `VITE_API_BASE_URL` (default `http://localhost:5000/api`): authentication/profile,
+catalogue/taxonomy, cart, authenticated wishlist, checkout/orders, admin, reviews, Phase 9
+recommendations, and Virtual Try-On. `frontend/src/mocks/` and all production mock branches were
+removed. Failures are shown as failures; services do not fabricate success responses.
 
-## Switched domains
+Legitimate browser-local state remains local: the guest cart identifier, unauthenticated guest
+wishlist, and the VTO guest session UUID. No customer photograph, result image, provider URL,
+credential or body measurement is persisted in localStorage/sessionStorage.
 
-| Domain | Real-mode authority | Mock-mode fallback | Integration notes |
-|---|---|---|---|
-| Catalogue, categories, collections, search | Products/category/collection services | Existing catalogue repositories | Home collections, category/collection headings, and search use real data. Shop size/colour facets come from the full published catalogue, constrained only by top-level gender/sale context rather than the current result page. Nullable product/category/collection reads translate only expected 404s to `null`. |
-| Authentication | `/auth/login`, `/auth/register`, `/auth/me`, `/auth/refresh`, `/auth/logout` | Existing demo users | Concurrent 401s share one rotating refresh request and each request retries at most once. Login/register/logout failures never trigger refresh. Logout always removes browser credentials. Real-mode demo buttons only fill the public demo email; passwords are never bundled. Temporary hydration outages preserve the session. |
-| Profile, addresses, measurements | `/profile` routes | Existing local demo user | Successful server responses replace the session user; pages no longer invent persisted IDs in real mode. |
-| Cart | `/cart` routes | Existing persisted demo cart | The server response replaces cart state after every real mutation. Authentication remains successful when guest merge fails: the guest ID is retained, the authenticated cart is hydrated, and a nonfatal warning is exposed. Successful merges install the returned cart and consume the guest ID. Prices, stock, promotions and totals remain server-authoritative. Promo discounts have one monetary-amount contract in both modes. |
-| Wishlist | `/wishlist` routes plus isolated local guest state | Existing persisted demo wishlist | Real-mode guests retain the existing local heart experience without API calls. After authentication, missing guest IDs are added without toggling existing server items off, the final server wishlist becomes canonical, and consumed guest state is cleared. Logout removes account data without exposing it to another account. |
-| Orders | `/orders` routes | Existing mock orders/order creation | Account history queries the service. Checkout submits cart selections but treats returned price, delivery and order metadata as authoritative. Confirmation receives the created order and never fabricates an order number/date in real mode. |
-| Admin | `/admin` routes | Existing admin mock data | Catalogue, category, inventory, users, orders, reviews, promotions and metrics use real endpoints. Dashboard sales, top products, recent orders and stock panels are derived from real orders/inventory; the Users table derives actual per-user order counts and excludes guest orders. Real CSV files bypass the legacy preview parser and display the authoritative bulk-import result and row errors. |
+## Virtual Try-On
 
-## Static-data audit
+The existing fitting-room layout, product picker, colour selection, upload presentation and result
+card now drive the real Express lifecycle. Submission sends multipart image data, explicit consent,
+the MongoDB product id and selected colour. Express—not the browser—selects the garment image.
+The page polls the existing job, supports cancellation and persisted helpful/not-helpful feedback,
+expires temporary results, and invalidates stale results whenever the product, colour or photo
+changes. Add to Bag requires a valid selected in-stock variant and an explicit size.
 
-- Recommendations remain available in mock mode because Phase 9 has not shipped; real mode returns an empty/unavailable result and makes no recommendation API request.
-- Virtual Try-On remains explicitly demo-only because provider integration is Phase 10; real mode makes no VTO API request and generated results remain marked `isDemo`.
-- Size recommendation remains available in mock mode because its ML service is Phase 13; real mode reports it unavailable and makes no size-recommendation API request.
-- Public product review records are shown only in mock mode. Real mode retains the catalogue `reviewCount` summary and truthfully reports that detailed records are unavailable through the public API.
-- Hero copy/images, delivery-option presentation and other editorial constants remain presentation data. The backend still determines checkout pricing and delivery output.
-- Mock imports remain deliberately isolated behind runtime mode or explicit future-phase demo gates; they are never selected as real-mode authority for a Phase 3–7 domain.
+Consent/privacy copy identifies VESTRA, Cloudinary and Pixelcut; explains temporary storage and
+best-effort lifecycle cleanup; avoids promising immediate provider deletion; and states that an AI
+preview is visual guidance rather than a guarantee of fit, colour, size or exact garment detail.
 
-## Frontend test tooling
+## Truthful unavailable states
 
-The frontend manifest has no test runner or test script. Phase 8 does not introduce a new dependency solely for these orchestration tests; verification therefore uses strict type-checking, both mode-specific production builds, backend regression tests, and documented integration checks.
+- Phase 13 ML size recommendation remains unavailable and does not return a fake result.
+- The backend has no detailed public review-list route, so the production service returns an empty
+  detailed list while catalogue rating/review-count summaries remain authoritative.
+- Demo-account buttons prefill only public email addresses; passwords are never shipped in the
+  frontend bundle.
 
-## Verification record
+## Verification boundary
 
-Automated verification for this change is recorded in the pull request and commit report. The mock-mode Vite server was started with the backend offline and served successfully. A browser automation runtime and a configured real MongoDB/API deployment were not available in this workspace, so authenticated end-to-end browser scenarios remain an explicit deployment verification item: catalogue reads, cart/wishlist mutations, checkout confirmation, profile persistence, admin reads, and 401/404/500 UI paths. Functional loading/empty/error states reuse existing components and classes.
+Phase 10 verification uses frontend TypeScript/build checks and backend Express integration tests
+with mocked Pixelcut/Cloudinary transports. No live chargeable Pixelcut generation, real Cloudinary
+upload, deployed Atlas connection or deployed browser end-to-end flow is claimed. Those require
+private environment configuration and a separately approved smoke test.
 
 ## Design regression statement
 
-Phase 8 intentionally changes data orchestration only. It does not alter the visual theme, page layout, navigation presentation, product-page hierarchy, storefront/admin separation, typography, colours, or responsive design.
+Phase 10 changes production data orchestration and truthful copy, not VESTRA's visual identity.
+Typography, colours, page layouts, navigation, spacing, responsive behaviour, storefront/admin
+separation and the product-page commerce hierarchy remain intact.

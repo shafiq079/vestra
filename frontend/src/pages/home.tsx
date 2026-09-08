@@ -80,12 +80,12 @@ export function HomePage() {
                 </h3>
 
                 <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-                  Find a recommended size using your measurements and fit preferences.
+                  View measurement guidance while the Phase 13 ML recommendation service is unavailable.
                 </p>
               </div>
 
               <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
-                Find your size
+                View size guide
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
               </span>
             </Link>

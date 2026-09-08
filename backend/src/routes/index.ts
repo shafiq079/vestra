@@ -19,15 +19,18 @@ import { profileRouter } from './profile';
 import { cartRouter } from './cart';
 import { wishlistRouter } from './wishlist';
 import { ordersRouter } from './orders';
-import { adminRouter } from './admin';
+import { createAdminRouter } from './admin';
 import { recommendationsRouter } from './recommendations';
+import { createVirtualTryOnRouter } from './virtualTryOn';
+import type { VirtualTryOnDependencies } from '../services/virtualTryOnService';
 
 export interface ApiRouterOptions {
   /** Mounts the test-only diagnostics routes. Never enable in a deployment. */
   enableDiagnostics: boolean;
+  virtualTryOn: VirtualTryOnDependencies;
 }
 
-export function createApiRouter({ enableDiagnostics }: ApiRouterOptions): Router {
+export function createApiRouter({ enableDiagnostics, virtualTryOn }: ApiRouterOptions): Router {
   const router = Router();
 
   router.use('/health', healthRouter);
@@ -39,8 +42,9 @@ export function createApiRouter({ enableDiagnostics }: ApiRouterOptions): Router
   router.use('/cart', cartRouter);
   router.use('/wishlist', wishlistRouter);
   router.use('/orders', ordersRouter);
-  router.use('/admin', adminRouter);
+  router.use('/admin', createAdminRouter(virtualTryOn.imageStorage));
   router.use('/recommendations', recommendationsRouter);
+  router.use('/virtual-try-on', createVirtualTryOnRouter(virtualTryOn));
 
   if (enableDiagnostics) {
     router.use('/__diagnostics', diagnosticsRouter);

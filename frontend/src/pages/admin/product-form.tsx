@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { createAdminProduct, updateAdminProduct } from '@/services/adminService';
+import { createAdminProduct, updateAdminProduct, uploadAdminImage } from '@/services/adminService';
 import { slugify } from '@/utils/formatters';
 import type { Product, ProductBadge, GenderCollection } from '@/types';
 
@@ -33,6 +33,12 @@ const imageSchema = z.object({
   alt: z.string(),
   position: z.coerce.number().int().min(0),
   isLifestyle: z.boolean(),
+  colour: z.string().optional(),
+  isTryOnReady: z.boolean().optional(),
+  cloudinaryAssetId: z.string().optional(),
+  cloudinaryPublicId: z.string().optional(),
+  cloudinaryVersion: z.number().int().positive().optional(),
+  cloudinaryFormat: z.string().optional(),
 });
 
 const productSchema = z.object({
@@ -160,6 +166,7 @@ export function ProductForm({ product, mode }: ProductFormProps) {
   const queryClient = useQueryClient();
   const [materialsInput, setMaterialsInput] = useState('');
   const [careInput, setCareInput] = useState('');
+  const [imageUploading, setImageUploading] = useState(false);
 
   const { control, register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(productSchema) as never,
@@ -222,15 +229,17 @@ export function ProductForm({ product, mode }: ProductFormProps) {
     else setValue('badges', [...current, badge]);
   };
 
-  const handleLocalImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLocalImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      appendImage({ id: genId('img'), url: reader.result as string, alt: '', position: imageFields.length, isLifestyle: false });
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+    setImageUploading(true);
+    try {
+      const uploaded = await uploadAdminImage(file);
+      appendImage({ id: genId('img'), ...uploaded, position: imageFields.length });
+      toast.success('Image uploaded to the catalogue library');
+    } catch (error) { toast.error((error as Error).message || 'Image upload failed'); }
+    finally { setImageUploading(false); }
   };
 
   return (
@@ -324,6 +333,11 @@ export function ProductForm({ product, mode }: ProductFormProps) {
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Input placeholder="Image URL" {...register(`images.${idx}.url`)} />
                 <Input placeholder="Alt text" {...register(`images.${idx}.alt`)} />
+                <Input placeholder="Colour (optional)" {...register(`images.${idx}.colour`)} />
+                <div className="flex items-center gap-2 px-1">
+                  <Controller control={control} name={`images.${idx}.isTryOnReady`} render={({ field: ready }) => <Switch checked={ready.value ?? false} onCheckedChange={ready.onChange} />} />
+                  <Label className="text-xs">Clean VTO garment image</Label>
+                </div>
               </div>
               <Button type="button" variant="ghost" size="icon" onClick={() => removeImage(idx)}><Trash2 className="h-4 w-4" /></Button>
             </div>
@@ -331,8 +345,9 @@ export function ProductForm({ product, mode }: ProductFormProps) {
           {imageFields.length === 0 && <p className="text-sm text-muted-foreground">No images added yet.</p>}
         </div>
         <div className="flex items-center gap-3">
-          <Label className="text-sm text-muted-foreground">Local file preview (prototype only):</Label>
-          <Input type="file" accept="image/*" onChange={handleLocalImage} className="max-w-xs text-sm" />
+          <Label className="text-sm text-muted-foreground">Upload to Cloudinary:</Label>
+          <Input type="file" accept="image/jpeg,image/png" onChange={(event) => void handleLocalImage(event)} disabled={imageUploading} className="max-w-xs text-sm" />
+          {imageUploading && <span className="text-xs text-muted-foreground">Uploading…</span>}
         </div>
       </section>
 

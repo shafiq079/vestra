@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Scan, Upload, X, Sparkles, CircleAlert as AlertCircle, Loader as Loader2, ShoppingBag, Ruler, RefreshCw, Trash2, Shirt, Palette, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getEligibleProducts, getProductForTryOn, submitTryOn, vtoProcessingMessages } from '@/services/virtualTryOnService';
+import { cancelTryOnJob, getEligibleProducts, getProductForTryOn, getTryOnJob, resultFromJob, submitTryOn, submitTryOnFeedback, vtoProcessingMessages } from '@/services/virtualTryOnService';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { useUIStore } from '@/store/uiStore';
@@ -16,7 +16,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { formatPrice } from '@/utils/formatters';
 import { handleImageError, getProductImageUrl } from '@/utils/imageUtils';
 import { toast } from 'sonner';
-import type { Product, VirtualTryOnResult } from '@/types';
+import type { ApiError, Product, VirtualTryOnJob, VirtualTryOnResult } from '@/types';
 
 const MAX_SUGGESTIONS = 4;
 
@@ -63,7 +63,11 @@ export function VirtualFittingRoomPage() {
   const [processing, setProcessing] = useState(false);
   const [processStep, setProcessStep] = useState(0);
   const [result, setResult] = useState<VirtualTryOnResult | null>(null);
+  const [activeJob, setActiveJob] = useState<VirtualTryOnJob | null>(null);
   const [feedback, setFeedback] = useState<'helpful' | 'not_helpful' | null>(null);
+  const [selectedSize, setSelectedSize] = useState('');
+  const generationRef = useRef(0);
+  const selectionRef = useRef('');
 
   const addItem = useCartStore((s) => s.addItem);
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);
@@ -113,6 +117,27 @@ export function VirtualFittingRoomPage() {
     };
   }, [imageUrl]);
 
+  useEffect(() => {
+    if (!activeJob?.resultExpiresAt || !result) return;
+    const remaining = new Date(activeJob.resultExpiresAt).getTime() - Date.now();
+    if (remaining <= 0) { setResult(null); return; }
+    const timer = window.setTimeout(() => { setResult(null); toast.info('This temporary preview has expired.'); }, remaining);
+    return () => window.clearTimeout(timer);
+  }, [activeJob?.resultExpiresAt, result]);
+
+  // Also cover browser back/forward navigation, not only picker/colour click handlers.
+  useEffect(() => {
+    const selection = selectedProduct ? `${selectedProduct.id}:${selectedColour}` : '';
+    if (selectionRef.current && selectionRef.current !== selection) {
+      generationRef.current += 1;
+      if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'running')) {
+        void cancelTryOnJob(activeJob.id, activeJob.accessToken).catch(() => undefined);
+      }
+      setActiveJob(null); setProcessing(false); setResult(null); setFeedback(null); setSelectedSize('');
+    }
+    selectionRef.current = selection;
+  }, [selectedProduct, selectedColour, activeJob]);
+
   const selectProduct = (product: Product, colour?: string) => {
   const resolvedColour =
     colour && product.colours.includes(colour)
@@ -121,6 +146,11 @@ export function VirtualFittingRoomPage() {
 
   setResult(null);
   setFeedback(null);
+  setSelectedSize('');
+  generationRef.current += 1;
+  if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'running')) void cancelTryOnJob(activeJob.id, activeJob.accessToken).catch(() => undefined);
+  setActiveJob(null);
+  setProcessing(false);
 
   setSearchParams(
     {
@@ -141,6 +171,11 @@ export function VirtualFittingRoomPage() {
 
   setResult(null);
   setFeedback(null);
+  setSelectedSize('');
+  generationRef.current += 1;
+  if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'running')) void cancelTryOnJob(activeJob.id, activeJob.accessToken).catch(() => undefined);
+  setActiveJob(null);
+  setProcessing(false);
 
   setSearchParams(
     {
@@ -160,6 +195,10 @@ export function VirtualFittingRoomPage() {
     }
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     const url = URL.createObjectURL(file);
+    setResult(null); setFeedback(null); setSelectedSize('');
+    generationRef.current += 1;
+    if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'running')) void cancelTryOnJob(activeJob.id, activeJob.accessToken).catch(() => undefined);
+    setActiveJob(null); setProcessing(false);
     setImageFile(file);
     setImageUrl(url);
     e.target.value = '';
@@ -173,9 +212,15 @@ export function VirtualFittingRoomPage() {
     setImageUrl(null);
     setResult(null);
     setFeedback(null);
+    setSelectedSize('');
+    generationRef.current += 1;
+    if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'running')) void cancelTryOnJob(activeJob.id, activeJob.accessToken).catch(() => undefined);
+    setActiveJob(null);
+    setProcessing(false);
   };
 
   const clearSession = () => {
+    if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'running')) void cancelTryOnJob(activeJob.id, activeJob.accessToken).catch(() => undefined);
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     setImageFile(null);
     setImageUrl(null);
@@ -184,6 +229,9 @@ export function VirtualFittingRoomPage() {
     setFeedback(null);
     setProcessStep(0);
     setProcessing(false);
+    setActiveJob(null);
+    setSelectedSize('');
+    generationRef.current += 1;
   };
 
   const handleTryOn = async () => {
@@ -193,29 +241,50 @@ export function VirtualFittingRoomPage() {
     setProcessStep(0);
     setResult(null);
     setFeedback(null);
+    const generation = ++generationRef.current;
+    const idempotencyKey = crypto.randomUUID();
     const stepInterval = setInterval(() => {
       setProcessStep((p) => Math.min(p + 1, vtoProcessingMessages.length - 1));
     }, 1200);
     try {
-      const res = await submitTryOn({
+      let job = await submitTryOn({
         productId: selectedProduct.id,
         variantColour: selectedColour || selectedProduct.colours[0],
         imageFile,
         consentGiven: consent,
-      });
-      setResult(res);
-    } catch {
-      toast.error('Try-on failed. Please try again.');
+      }, idempotencyKey);
+      if (generation !== generationRef.current) {
+        if (job.status === 'pending' || job.status === 'running') void cancelTryOnJob(job.id, job.accessToken).catch(() => undefined);
+        return;
+      }
+      setActiveJob(job);
+      while (job.status === 'pending' || job.status === 'running') {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (generation !== generationRef.current) return;
+        job = await getTryOnJob(job.id, job.accessToken);
+        setActiveJob(job);
+      }
+      if (job.status === 'completed') {
+        const completed = resultFromJob(job);
+        if (completed) setResult(completed);
+      } else if (job.status === 'cancelled') {
+        toast.info('Virtual Try-On cancelled');
+      } else {
+        throw job.error ?? new Error('Virtual Try-On could not be completed.');
+      }
+    } catch (error) {
+      if (generation === generationRef.current) toast.error((error as ApiError).message || 'Try-on failed. Please try again.');
     } finally {
       clearInterval(stepInterval);
-      setProcessing(false);
+      if (generation === generationRef.current) setProcessing(false);
     }
   };
 
   const handleAddToBag = async () => {
     if (!selectedProduct) return;
     const colour = selectedColour || selectedProduct.colours[0];
-    const size = selectedProduct.availableSizes[0];
+    const size = selectedSize;
+    if (!size) { toast.error('Choose a size before adding this item'); return; }
     const variant = selectedProduct.variants.find((v) => v.colour === colour && v.size === size);
     if (!variant) {
       toast.error('Please choose a size on the product page first');
@@ -225,9 +294,18 @@ export function VirtualFittingRoomPage() {
     catch (error) { toast.error((error as Error).message || 'Unable to add this item'); }
   };
 
-  const handleFeedback = (value: 'helpful' | 'not_helpful') => {
-    setFeedback(value);
-    toast.success('Thanks for your feedback');
+  const handleFeedback = async (value: 'helpful' | 'not_helpful') => {
+    if (!activeJob) return;
+    try {
+      const updated = await submitTryOnFeedback(activeJob.id, value, activeJob.accessToken);
+      setActiveJob(updated); setFeedback(value); toast.success('Thanks for your feedback');
+    } catch (error) { toast.error((error as ApiError).message || 'Unable to save feedback'); }
+  };
+
+  const handleCancel = async () => {
+    const job = activeJob; generationRef.current += 1;
+    if (job) await cancelTryOnJob(job.id, job.accessToken).catch(() => undefined);
+    setProcessing(false); setActiveJob(null); setResult(null); toast.info('Virtual Try-On cancelled');
   };
 
   // Suggestions for direct entry: up to MAX_SUGGESTIONS eligible products, wishlist-first
@@ -254,7 +332,7 @@ export function VirtualFittingRoomPage() {
         </div>
         <h1 className="font-display text-3xl lg:text-5xl mt-4">Virtual Fitting Room</h1>
         <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
-          See how garments look on you before you buy. Upload a photo, choose a garment, and get an instant demo preview.
+           See how garments look on you before you buy. Upload a photo, choose a garment, and create an AI preview.
         </p>
       </div>
 
@@ -287,14 +365,15 @@ export function VirtualFittingRoomPage() {
         <div className="max-w-md mx-auto text-center py-20" role="status" aria-live="polite">
           <Loader2 className="h-12 w-12 animate-spin mx-auto text-ai" />
           <p className="mt-6 font-medium">{vtoProcessingMessages[processStep]}...</p>
-          <div className="flex justify-center gap-2 mt-4" aria-hidden="true">
+           <div className="flex justify-center gap-2 mt-4" aria-hidden="true">
             {vtoProcessingMessages.map((_, i) => (
               <div
                 key={i}
                 className={`w-2 h-2 rounded-full ${i <= processStep ? 'bg-ai' : 'bg-muted'}`}
               />
             ))}
-          </div>
+           </div>
+           <Button variant="outline" className="mt-6" onClick={() => void handleCancel()}>Cancel</Button>
         </div>
       ) : result && selectedProduct ? (
         <div className="max-w-3xl mx-auto">
@@ -308,16 +387,14 @@ export function VirtualFittingRoomPage() {
               />
             </figure>
             <figure className="relative">
-              <figcaption className="text-sm font-medium mb-2">Demo Try-On Preview</figcaption>
+              <figcaption className="text-sm font-medium mb-2">Virtual Try-On Preview</figcaption>
               <img
                 src={getProductImageUrl(result.resultImage)}
-                alt={`Demo preview of ${result.productName} in ${result.colour}`}
+                alt={`Virtual try-on preview of ${result.productName} in ${result.colour}`}
                 onError={handleImageError}
                 className="w-full rounded-xl object-cover aspect-product"
               />
-              <Badge className="absolute top-2 left-2" variant="secondary">
-                Demo Preview
-              </Badge>
+              <Badge className="absolute top-2 left-2" variant="secondary">AI Preview</Badge>
             </figure>
           </div>
 
@@ -325,10 +402,21 @@ export function VirtualFittingRoomPage() {
             <p className="font-medium">{result.productName}</p>
             <p className="text-sm text-muted-foreground">Colour: {result.colour}</p>
             <p className="text-sm mt-1">{formatPrice(selectedProduct.salePrice ?? selectedProduct.price)}</p>
+            <p className="text-xs text-muted-foreground mt-3">AI previews are visual guidance only and do not guarantee fit, colour, sizing, or exact garment detail. The result link is temporary.</p>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm font-medium mb-3">Choose a size to add to bag</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {selectedProduct.availableSizes.map((size) => {
+                const variant = selectedProduct.variants.find((item) => item.colour === selectedColour && item.size === size);
+                return <Button key={size} type="button" size="sm" variant={selectedSize === size ? 'default' : 'outline'} disabled={!variant || variant.stock < 1} onClick={() => setSelectedSize(size)}>{size}</Button>;
+              })}
+            </div>
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3 justify-center">
-            <Button onClick={handleAddToBag}>
+            <Button onClick={handleAddToBag} disabled={!selectedSize}>
               <ShoppingBag className="h-4 w-4" /> Add to Bag
             </Button>
             <Button asChild variant="outline">
@@ -510,9 +598,9 @@ export function VirtualFittingRoomPage() {
               <div className="flex items-start gap-3">
                 <Checkbox id="vto-consent" checked={consent} onCheckedChange={(v) => setConsent(v === true)} />
                 <Label htmlFor="vto-consent" className="text-sm cursor-pointer leading-relaxed">
-                  Demo mode: your selected image remains in this browser session and is not uploaded to a
-                  server. In the production version, explicit consent will be required before the image is
-                  sent securely for virtual try-on processing. See our{' '}
+                   I consent to VESTRA sending this photo to Cloudinary for temporary restricted storage and to
+                   Pixelcut for AI processing. VESTRA deletes its temporary Cloudinary copy after the job, with
+                   retry cleanup if deletion fails; Pixelcut controls its own short retention period. See our{' '}
                   <Link to="/privacy" className="underline hover:text-foreground">
                     Privacy Policy
                   </Link>
@@ -521,7 +609,7 @@ export function VirtualFittingRoomPage() {
               </div>
             </div>
             <Button size="lg" className="w-full" onClick={handleTryOn} disabled={!canGenerate}>
-              <Scan className="h-5 w-5" /> Generate Demo Preview
+               <Scan className="h-5 w-5" /> Generate Preview
             </Button>
           </section>
         </div>

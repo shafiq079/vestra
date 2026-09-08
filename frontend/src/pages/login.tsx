@@ -6,25 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { USE_MOCK_API } from '@/services/apiClient';
 import { errorMessage } from '@/utils/errorMessage';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const loginDemo = useAuthStore((s) => s.loginDemo);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleDemo = async (role: 'customer' | 'admin') => {
-    if (!USE_MOCK_API) {
-      setEmail(role === 'admin' ? 'admin@vestra.co.uk' : 'emma.thompson@example.co.uk');
-      toast.info('Demo email filled in. Enter the configured demo password to continue.');
-      return;
-    }
-    try { await loginDemo(role); navigate(role === 'admin' ? '/admin' : '/account'); }
-    catch (error) { toast.error((error as Error).message || 'Demo sign-in is unavailable'); }
+    setEmail(role === 'admin' ? 'admin@vestra.co.uk' : 'emma.thompson@example.co.uk');
+    toast.info('Demo email filled in. Enter the configured demo password to continue.');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

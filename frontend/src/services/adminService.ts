@@ -1,25 +1,5 @@
-import { USE_MOCK_API, apiClient } from './apiClient';
-import { mockDashboardMetrics, mockSalesData, mockTopProducts, mockRecentOrders, mockLowStockVariants, mockSystemIssues, mockPromotions } from '../mocks/dashboard';
-import { mockUsers } from '../mocks/users';
-import { mockOrders } from '../mocks/orders';
-import { mockReviews } from '../mocks/reviews';
-import { mockRequest } from '../mocks/mockDatabase';
-
-export async function getAdminPromotions() {
-  if (USE_MOCK_API) return mockRequest(mockPromotions);
-  const response = await apiClient.get('/admin/promotions');
-  return response.data;
-}
-
-export async function getAdminReviews() {
-  if (USE_MOCK_API) return mockRequest(mockReviews);
-  const response = await apiClient.get('/admin/reviews');
-  return response.data;
-}
-import * as productRepo from '../mocks/productRepository';
-import * as categoryRepo from '../mocks/categoryRepository';
-import type { AdminDashboardMetrics, Product, Category } from '../types';
-import type { Order } from '../types';
+import { apiClient } from './apiClient';
+import type { AdminDashboardMetrics, Product, ProductImage, Category, Order } from '../types';
 
 export interface DashboardDetails {
   sales: { month: string; revenue: number }[];
@@ -28,16 +8,11 @@ export interface DashboardDetails {
   lowStockVariants: { sku: string; productName: string; colour: string; size: string; stock: number }[];
   systemIssues: { id: string; severity: 'error' | 'warning' | 'info'; message: string; time: string }[];
 }
-export interface CsvImportResult {
-  totalRows: number;
-  importedCount: number;
-  errorCount: number;
-  imported: Product[];
-  errors: { row: number; errors: string[] }[];
-}
+export interface CsvImportResult { totalRows: number; importedCount: number; errorCount: number; imported: Product[]; errors: { row: number; errors: string[] }[]; }
 
+export async function getAdminPromotions() { return (await apiClient.get('/admin/promotions')).data; }
+export async function getAdminReviews() { return (await apiClient.get('/admin/reviews')).data; }
 export async function getDashboardDetails(): Promise<DashboardDetails> {
-  if (USE_MOCK_API) return { sales: mockSalesData, topProducts: mockTopProducts, recentOrders: mockRecentOrders, lowStockVariants: mockLowStockVariants, systemIssues: mockSystemIssues as DashboardDetails['systemIssues'] };
   const [orders, products] = await Promise.all([getAdminOrders() as Promise<Order[]>, getAdminInventory()]);
   const byProduct = new Map<string, { productName: string; unitsSold: number; revenue: number }>();
   const paidOrders = orders.filter((item) => item.paymentStatus === 'paid');
@@ -49,194 +24,31 @@ export async function getDashboardDetails(): Promise<DashboardDetails> {
   const sales = Array.from({ length: 6 }, (_, index) => {
     const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + index, 1));
     const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`;
-    const revenue = paidOrders.reduce((total, order) => {
-      const created = new Date(order.createdAt);
-      return `${created.getUTCFullYear()}-${created.getUTCMonth()}` === key ? total + order.total : total;
-    }, 0);
+    const revenue = paidOrders.reduce((total, order) => { const created = new Date(order.createdAt); return `${created.getUTCFullYear()}-${created.getUTCMonth()}` === key ? total + order.total : total; }, 0);
     return { month: new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' }).format(date), revenue: Number(revenue.toFixed(2)) };
   });
-  return {
-    sales,
-    topProducts: [...byProduct].map(([productId, value]) => ({ productId, ...value })).sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5),
+  return { sales, topProducts: [...byProduct].map(([productId, value]) => ({ productId, ...value })).sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5),
     recentOrders: orders.slice(0, 5).map((order) => ({ id: order.id, orderNumber: order.orderNumber, customer: `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`, date: order.createdAt, status: order.status, total: order.total })),
-    lowStockVariants: products.flatMap((product) => product.variants.filter((variant) => variant.stock <= 5).map((variant) => ({ sku: variant.sku, productName: product.name, colour: variant.colour, size: variant.size, stock: variant.stock }))).slice(0, 5),
-    systemIssues: [],
-  };
+    lowStockVariants: products.flatMap((product) => product.variants.filter((variant) => variant.stock <= 5).map((variant) => ({ sku: variant.sku, productName: product.name, colour: variant.colour, size: variant.size, stock: variant.stock }))).slice(0, 5), systemIssues: [] };
 }
-
-export async function importAdminProducts(csv: string): Promise<CsvImportResult> {
-  if (USE_MOCK_API) throw new Error('Mock CSV import is handled locally.');
-  return (await apiClient.post<CsvImportResult>('/admin/products/import', csv, { headers: { 'Content-Type': 'text/csv' } })).data;
-}
-
-export async function getDashboardMetrics(): Promise<AdminDashboardMetrics> {
-  if (USE_MOCK_API) return mockRequest(mockDashboardMetrics);
-  const response = await apiClient.get('/admin/dashboard');
-  return response.data;
-}
-
-export async function getAdminUsers() {
-  if (USE_MOCK_API) return mockRequest(mockUsers);
-  const response = await apiClient.get('/admin/users');
-  return response.data;
-}
-
-export async function getAdminOrders() {
-  if (USE_MOCK_API) return mockRequest(mockOrders);
-  const response = await apiClient.get('/admin/orders');
-  return response.data;
-}
-
-export async function getAdminProducts(): Promise<Product[]> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return productRepo.getProducts();
-  }
-  const response = await apiClient.get('/admin/products');
-  return response.data;
-}
-
-export async function getAdminProduct(id: string): Promise<Product | null> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 200));
-    return productRepo.getProductById(id) || null;
-  }
-  const response = await apiClient.get(`/admin/products/${id}`);
-  return response.data;
-}
-
-export async function createAdminProduct(input: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 400));
-    return productRepo.createProduct(input);
-  }
-  const response = await apiClient.post('/admin/products', input);
-  return response.data;
-}
-
-export async function updateAdminProduct(id: string, updates: Partial<Product>): Promise<Product | null> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 400));
-    return productRepo.updateProduct(id, updates) ?? null;
-  }
-  const response = await apiClient.put(`/admin/products/${id}`, updates);
-  return response.data;
-}
-
-export async function deleteAdminProduct(id: string): Promise<boolean> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return productRepo.deleteProduct(id);
-  }
-  await apiClient.delete(`/admin/products/${id}`);
-  return true;
-}
-
-export async function duplicateAdminProduct(id: string): Promise<Product | null> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 400));
-    return productRepo.duplicateProduct(id) || null;
-  }
-  const response = await apiClient.post(`/admin/products/${id}/duplicate`);
-  return response.data;
-}
-
-export async function setAdminProductPublished(id: string, isPublished: boolean): Promise<Product | null> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return productRepo.setPublished(id, isPublished) ?? null;
-  }
-  const response = await apiClient.patch(`/admin/products/${id}/published`, { isPublished });
-  return response.data;
-}
-
-export async function bulkSetAdminProductPublished(ids: string[], isPublished: boolean): Promise<Product[]> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 400));
-    return productRepo.bulkSetPublished(ids, isPublished);
-  }
-  const response = await apiClient.post('/admin/products/bulk/publish', { ids, isPublished });
-  return response.data;
-}
-
-export async function bulkDeleteAdminProducts(ids: string[]): Promise<number> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 400));
-    return productRepo.bulkDelete(ids);
-  }
-  const response = await apiClient.post('/admin/products/bulk/delete', { ids });
-  return response.data.deleted;
-}
-
-export async function resetAdminProducts(): Promise<Product[]> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return productRepo.resetToSeedProducts();
-  }
-  const response = await apiClient.post('/admin/products/reset');
-  return response.data;
-}
-
-// ── Categories ──────────────────────────────────────────────
-
-export async function getAdminCategories(): Promise<Category[]> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return categoryRepo.getCategories();
-  }
-  const response = await apiClient.get('/admin/categories');
-  return response.data;
-}
-
-export async function createAdminCategory(input: Omit<Category, 'id'>): Promise<Category> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return categoryRepo.createCategory(input);
-  }
-  const response = await apiClient.post('/admin/categories', input);
-  return response.data;
-}
-
-export async function updateAdminCategory(id: string, updates: Partial<Category>): Promise<Category | null> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return categoryRepo.updateCategory(id, updates) ?? null;
-  }
-  const response = await apiClient.put(`/admin/categories/${id}`, updates);
-  return response.data;
-}
-
-export async function deleteAdminCategory(id: string): Promise<boolean> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return categoryRepo.deleteCategory(id);
-  }
-  await apiClient.delete(`/admin/categories/${id}`);
-  return true;
-}
-
-// ── Inventory ──────────────────────────────────────────────
-
-export async function getAdminInventory(): Promise<Product[]> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    return productRepo.getProducts();
-  }
-  const response = await apiClient.get('/admin/inventory');
-  return response.data;
-}
-
-export async function updateVariantStock(productId: string, variantId: string, stock: number): Promise<Product | null> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 300));
-    const product = productRepo.getProductById(productId);
-    if (!product) return null;
-    const variants = product.variants.map((v) => (v.id === variantId ? { ...v, stock } : v));
-    const updated = { ...product, variants };
-    return productRepo.updateProduct(productId, productRepo.recomputeStockStatus(updated)) ?? null;
-  }
-  const response = await apiClient.patch(`/admin/inventory/${productId}/variants/${variantId}`, { stock });
-  return response.data;
-}
-
-export { mockSalesData, mockTopProducts, mockRecentOrders, mockLowStockVariants, mockSystemIssues, mockPromotions, mockReviews };
+export async function importAdminProducts(csv: string): Promise<CsvImportResult> { return (await apiClient.post<CsvImportResult>('/admin/products/import', csv, { headers: { 'Content-Type': 'text/csv' } })).data; }
+export async function uploadAdminImage(file: File): Promise<Omit<ProductImage, 'id'>> { const data = new FormData(); data.append('image', file); return (await apiClient.post<Omit<ProductImage, 'id'>>('/admin/images', data, { headers: { 'Content-Type': 'multipart/form-data' } })).data; }
+export async function getDashboardMetrics(): Promise<AdminDashboardMetrics> { return (await apiClient.get<AdminDashboardMetrics>('/admin/dashboard')).data; }
+export async function getAdminUsers() { return (await apiClient.get('/admin/users')).data; }
+export async function getAdminOrders() { return (await apiClient.get('/admin/orders')).data; }
+export async function getAdminProducts(): Promise<Product[]> { return (await apiClient.get<Product[]>('/admin/products')).data; }
+export async function getAdminProduct(id: string): Promise<Product | null> { return (await apiClient.get<Product>(`/admin/products/${id}`)).data; }
+export async function createAdminProduct(input: Omit<Product, 'id' | 'createdAt'>): Promise<Product> { return (await apiClient.post<Product>('/admin/products', input)).data; }
+export async function updateAdminProduct(id: string, updates: Partial<Product>): Promise<Product | null> { return (await apiClient.put<Product>(`/admin/products/${id}`, updates)).data; }
+export async function deleteAdminProduct(id: string): Promise<boolean> { await apiClient.delete(`/admin/products/${id}`); return true; }
+export async function duplicateAdminProduct(id: string): Promise<Product | null> { return (await apiClient.post<Product>(`/admin/products/${id}/duplicate`)).data; }
+export async function setAdminProductPublished(id: string, isPublished: boolean): Promise<Product | null> { return (await apiClient.patch<Product>(`/admin/products/${id}/published`, { isPublished })).data; }
+export async function bulkSetAdminProductPublished(ids: string[], isPublished: boolean): Promise<Product[]> { return (await apiClient.post<Product[]>('/admin/products/bulk/publish', { ids, isPublished })).data; }
+export async function bulkDeleteAdminProducts(ids: string[]): Promise<number> { return (await apiClient.post<{ deleted: number }>('/admin/products/bulk/delete', { ids })).data.deleted; }
+export async function resetAdminProducts(): Promise<Product[]> { return (await apiClient.post<Product[]>('/admin/products/reset')).data; }
+export async function getAdminCategories(): Promise<Category[]> { return (await apiClient.get<Category[]>('/admin/categories')).data; }
+export async function createAdminCategory(input: Omit<Category, 'id'>): Promise<Category> { return (await apiClient.post<Category>('/admin/categories', input)).data; }
+export async function updateAdminCategory(id: string, updates: Partial<Category>): Promise<Category | null> { return (await apiClient.put<Category>(`/admin/categories/${id}`, updates)).data; }
+export async function deleteAdminCategory(id: string): Promise<boolean> { await apiClient.delete(`/admin/categories/${id}`); return true; }
+export async function getAdminInventory(): Promise<Product[]> { return (await apiClient.get<Product[]>('/admin/inventory')).data; }
+export async function updateVariantStock(productId: string, variantId: string, stock: number): Promise<Product | null> { return (await apiClient.patch<Product>(`/admin/inventory/${productId}/variants/${variantId}`, { stock })).data; }

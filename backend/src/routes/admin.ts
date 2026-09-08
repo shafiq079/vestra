@@ -2,10 +2,14 @@ import express, { Router } from 'express';
 import * as c from '../controllers/adminController';
 import { authenticate } from '../middleware/authenticate';
 import { authoriseRole } from '../middleware/authoriseRole';
+import { singleImageUpload } from '../middleware/imageUpload';
+import type { ImageStorage } from '../services/cloudinaryImageStorage';
 
-export const adminRouter = Router();
+export function createAdminRouter(imageStorage: ImageStorage): Router {
+const adminRouter = Router();
 adminRouter.use(authenticate, authoriseRole('admin'));
 adminRouter.get('/dashboard',c.dashboard);
+adminRouter.post('/images', singleImageUpload, c.uploadImage(imageStorage));
 adminRouter.get('/products',c.products);
 // Static product routes intentionally precede /:id.
 adminRouter.post('/products/bulk/publish',c.bulkPublish);
@@ -31,3 +35,5 @@ adminRouter.patch('/orders/:orderId/status',c.status);
 adminRouter.get('/reviews',c.reviews);
 adminRouter.patch('/reviews/:reviewId/moderation',c.moderation);
 adminRouter.get('/promotions',c.promotions);
+return adminRouter;
+}
