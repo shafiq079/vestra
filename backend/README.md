@@ -1,6 +1,6 @@
 # VESTRA — Backend
 
-## Phase 10 Cloudinary + Pixelcut Virtual Try-On (under review)
+## Phase 10 Cloudinary + Pixelcut Virtual Try-On
 
 Virtual Try-On is a genuine asynchronous, server-mediated integration:
 
@@ -96,7 +96,9 @@ separately (backend → Render with `backend/` as the service root; frontend →
 Never install a backend dependency from the repository root.
 
 The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
-**Phases 0A–9 are complete and merged. Phase 10 Virtual Try-On is under review.**
+**Phases 0A–11 are complete and merged. Phase 12 repository preparation is merged; deployment
+and owner production verification remain pending. Phase 13 is intentionally deferred until the
+client supplies the trained ML model.**
 
 ### Phase 4 authentication and account API
 
