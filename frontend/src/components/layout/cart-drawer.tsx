@@ -5,6 +5,7 @@ import { useUIStore } from '@/store/uiStore';
 import { useCartStore } from '@/store/cartStore';
 import { formatPrice } from '@/utils/formatters';
 import { brand } from '@/config/brand';
+import { toast } from 'sonner';
 
 export function CartDrawer() {
   const open = useUIStore((s) => s.cartDrawerOpen);
@@ -13,6 +14,10 @@ export function CartDrawer() {
   const removeItem = useCartStore((s) => s.removeItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const subtotal = useCartStore((s) => s.getSubtotal());
+  const mutateCart = async (operation: () => Promise<void>) => {
+    try { await operation(); }
+    catch (error) { toast.error((error as Error).message || 'Unable to update your bag'); }
+  };
 
   if (!open) return null;
 
@@ -45,11 +50,11 @@ export function CartDrawer() {
                     <p className="text-sm font-semibold mt-1">{formatPrice(item.price)}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <div className="flex items-center border border-border rounded-md">
-                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-1.5 hover:bg-muted" aria-label="Decrease"><Minus className="h-3 w-3" /></button>
+                        <button onClick={() => void mutateCart(() => updateQuantity(item.id, item.quantity - 1))} className="p-1.5 hover:bg-muted" aria-label="Decrease"><Minus className="h-3 w-3" /></button>
                         <span className="px-2 text-sm font-medium min-w-8 text-center">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-1.5 hover:bg-muted" aria-label="Increase"><Plus className="h-3 w-3" /></button>
+                        <button onClick={() => void mutateCart(() => updateQuantity(item.id, item.quantity + 1))} className="p-1.5 hover:bg-muted" aria-label="Increase"><Plus className="h-3 w-3" /></button>
                       </div>
-                      <button onClick={() => removeItem(item.id)} className="text-xs text-muted-foreground hover:text-foreground">Remove</button>
+                      <button onClick={() => void mutateCart(() => removeItem(item.id))} className="text-xs text-muted-foreground hover:text-foreground">Remove</button>
                     </div>
                   </div>
                 </div>

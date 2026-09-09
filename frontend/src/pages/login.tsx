@@ -6,24 +6,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { errorMessage } from '@/utils/errorMessage';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const loginDemo = useAuthStore((s) => s.loginDemo);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleDemo = async (role: 'customer' | 'admin') => {
+    setEmail(role === 'admin' ? 'admin@vestra.co.uk' : 'emma.thompson@example.co.uk');
+    toast.info('Demo email filled in. Enter the configured demo password to continue.');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
+      const user = await login(email, password);
       toast.success('Welcome back!');
-      navigate('/account');
+      const mergeWarning = useAuthStore.getState().cartMergeWarning;
+      if (mergeWarning) toast.warning(`Signed in successfully, but your guest bag could not be merged. ${mergeWarning}`);
+      navigate(user.role === 'admin' ? '/admin' : '/account');
     } catch (err) {
-      toast.error((err as Error).message || 'Invalid credentials');
+      toast.error(errorMessage(err, 'Invalid credentials'));
     } finally {
       setLoading(false);
     }
@@ -45,8 +52,8 @@ export function LoginPage() {
       <div className="relative my-6"><Separator /><span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">or</span></div>
       <p className="text-sm text-muted-foreground text-center mb-3">Try the demo</p>
       <div className="grid grid-cols-2 gap-3">
-        <Button variant="outline" onClick={() => { loginDemo('customer'); navigate('/account'); }}>Demo Customer</Button>
-        <Button variant="outline" onClick={() => { loginDemo('admin'); navigate('/admin'); }}>Demo Admin</Button>
+        <Button variant="outline" onClick={() => void handleDemo('customer')}>Demo Customer</Button>
+        <Button variant="outline" onClick={() => void handleDemo('admin')}>Demo Admin</Button>
       </div>
       <p className="text-xs text-center text-muted-foreground mt-4">Demo customer: emma.thompson@example.co.uk · Demo admin: admin@vestra.co.uk</p>
     </div>

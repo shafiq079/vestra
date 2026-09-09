@@ -5,6 +5,7 @@ import { formatPrice } from '@/utils/formatters';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { useCartStore } from '@/store/cartStore';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +18,13 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem);
   const price = product.salePrice ?? product.price;
   const hasSale = product.salePrice !== undefined && product.salePrice < product.price;
+  const handleWishlist = async () => { try { await toggleWishlist(product); } catch (error) { toast.error((error as Error).message || 'Sign in to update your wishlist'); } };
+  const handleQuickAdd = async () => {
+    const variant = product.variants[0];
+    if (!variant) return;
+    try { await addItem(product, variant.id, variant.colour, variant.size, 1); toast.success(`${product.name} added to bag`); }
+    catch (error) { toast.error((error as Error).message || 'Unable to add this item'); }
+  };
 
   return (
     <div className={cn('group relative', className)}>
@@ -31,12 +39,12 @@ export function ProductCard({ product, className }: ProductCardProps) {
           {product.badges.includes('bestseller') && <span className="bg-foreground text-background text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded">Bestseller</span>}
         </div>
         {/* Wishlist */}
-        <button onClick={() => toggleWishlist(product)} className="absolute top-2 right-2 p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background transition-colors" aria-label="Toggle wishlist">
+        <button onClick={() => void handleWishlist()} className="absolute top-2 right-2 p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background transition-colors" aria-label="Toggle wishlist">
           <Heart className={cn('h-4 w-4', hasWishlist && 'fill-destructive text-destructive')} />
         </button>
         {/* Quick add */}
         <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-          <button onClick={() => addItem(product, product.variants[0].id, product.colours[0], product.availableSizes[0], 1)} className="w-full bg-background/95 backdrop-blur-sm text-foreground text-sm font-medium py-2.5 rounded-md hover:bg-background flex items-center justify-center gap-2">
+          <button onClick={() => void handleQuickAdd()} className="w-full bg-background/95 backdrop-blur-sm text-foreground text-sm font-medium py-2.5 rounded-md hover:bg-background flex items-center justify-center gap-2">
             <ShoppingBag className="h-4 w-4" /> Quick Add
           </button>
         </div>

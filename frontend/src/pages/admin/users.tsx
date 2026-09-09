@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getAdminUsers } from '@/services/adminService';
+import { getAdminOrders, getAdminUsers } from '@/services/adminService';
 import {
   formatDate,
   initials,
@@ -11,7 +11,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from '@/components/ui/avatar';
-import type { User } from '@/types';
+import type { Order, User } from '@/types';
 
 export function AdminUsersPage() {
   const {
@@ -21,6 +21,10 @@ export function AdminUsersPage() {
     queryKey: ['admin-users'],
     queryFn: getAdminUsers,
   });
+  const { data: orders, isLoading: ordersLoading } = useQuery({
+    queryKey: ['admin-orders'],
+    queryFn: getAdminOrders,
+  });
 
   return (
     <div className="min-w-0">
@@ -28,7 +32,7 @@ export function AdminUsersPage() {
         Customers
       </h1>
 
-      {isLoading ? (
+      {isLoading || ordersLoading ? (
         <div className="h-64 animate-pulse rounded-xl bg-muted" />
       ) : (
         <Card className="overflow-hidden">
@@ -102,7 +106,7 @@ export function AdminUsersPage() {
                       </td>
 
                       <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
-                        {user.wishlistIds.length}
+                        {(orders as Order[] | undefined)?.filter((order) => order.userId === user.id).length ?? 0}
                       </td>
 
                       <td className="hidden px-4 py-3 sm:table-cell">

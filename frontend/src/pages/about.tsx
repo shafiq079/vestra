@@ -27,7 +27,7 @@ export function AboutPage() {
           <div className="bg-ai-background rounded-xl p-6">
             <Ruler className="h-8 w-8 text-ai mb-3" />
             <h3 className="font-semibold mb-2">Size Recommendation</h3>
-            <p className="text-sm text-muted-foreground">Enter your measurements once and get a personalised size recommendation for every product, with a confidence score and fit prediction.</p>
+            <p className="text-sm text-muted-foreground">Our measurement-based ML recommendation is planned for Phase 13 and is not currently available.</p>
           </div>
           <div className="bg-ai-background rounded-xl p-6">
             <Camera className="h-8 w-8 text-ai mb-3" />
@@ -37,7 +37,7 @@ export function AboutPage() {
           <div className="bg-ai-background rounded-xl p-6">
             <Shield className="h-8 w-8 text-ai mb-3" />
             <h3 className="font-semibold mb-2">Privacy First</h3>
-            <p className="text-sm text-muted-foreground">Your measurements and photos are encrypted, never shared, and you can delete them at any time. Your data belongs to you.</p>
+            <p className="text-sm text-muted-foreground">VTO photos are sent only with consent to temporary Cloudinary storage and Pixelcut processing, with VESTRA cleanup and transparent retention limits.</p>
           </div>
         </section>
 

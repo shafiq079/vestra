@@ -44,12 +44,14 @@ import { AdminUsersPage } from '@/pages/admin/users';
 import { AdminReviewsPage } from '@/pages/admin/reviews';
 import { AdminPromotionsPage } from '@/pages/admin/promotions';
 import { AdminAiFeaturesPage } from '@/pages/admin/ai-features';
+import { useApiBootstrap } from '@/hooks/use-api-bootstrap';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60000, retry: 1 } },
 });
 
 export function App() {
+  useApiBootstrap();
   return (
     <ThemeProvider defaultTheme="light" storageKey="vestra-theme">
       <QueryClientProvider client={queryClient}>

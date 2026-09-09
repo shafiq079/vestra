@@ -1,64 +1,96 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '../types';
-import { demoCustomer, demoAdmin, mockUsers } from '../mocks/users';
+import { clearAuthTokens } from '../services/apiClient';
+import type { ApiError } from '../types';
+import * as authService from '../services/authService';
+import * as profileService from '../services/profileService';
+import { mergeGuestCart } from '../services/cartService';
+import { useCartStore } from './cartStore';
+import { useWishlistStore } from './wishlistStore';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hydrationError: string | null;
+  cartMergeWarning: string | null;
   login: (email: string, password: string) => Promise<User>;
-  loginDemo: (role: 'customer' | 'admin') => void;
   register: (data: { firstName: string; lastName: string; email: string; password: string; marketingOptIn: boolean }) => Promise<User>;
-  logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
+  hydrate: () => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
+  replaceUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       isLoading: false,
-
-      login: async (email: string, _password: string) => {
-        await new Promise((r) => setTimeout(r, 400));
-        const found = mockUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-        if (!found) throw new Error('Invalid email or password');
-        set({ user: found, isAuthenticated: true });
-        return found;
+      hydrationError: null,
+      cartMergeWarning: null,
+      login: async (email, password) => {
+        set({ isLoading: true, cartMergeWarning: null });
+        try {
+          const user = await authService.login(email, password);
+          set({ user, isAuthenticated: true });
+          try { useCartStore.getState().replaceCart(await mergeGuestCart()); }
+          catch (error) {
+            set({ cartMergeWarning: (error as ApiError).message || 'Your guest bag could not be merged.' });
+            await useCartStore.getState().hydrate().catch(() => undefined);
+          }
+          await useWishlistStore.getState().mergeGuestWishlist().catch(async () => { await useWishlistStore.getState().hydrate().catch(() => undefined); });
+          return user;
+        } finally { set({ isLoading: false }); }
       },
-
-      loginDemo: (role) => {
-        const user = role === 'admin' ? demoAdmin : demoCustomer;
-        set({ user, isAuthenticated: true });
-      },
-
       register: async (data) => {
-        await new Promise((r) => setTimeout(r, 500));
-        const newUser: User = {
-          id: `u${Date.now()}`,
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          role: 'customer',
-          addresses: [],
-          wishlistIds: [],
-          createdAt: new Date().toISOString(),
-          isActive: true,
-          marketingOptIn: data.marketingOptIn,
-        };
-        set({ user: newUser, isAuthenticated: true });
-        return newUser;
+        set({ cartMergeWarning: null });
+        const user = await authService.register(data);
+        set({ user, isAuthenticated: true });
+        try { useCartStore.getState().replaceCart(await mergeGuestCart()); }
+        catch (error) {
+          set({ cartMergeWarning: (error as ApiError).message || 'Your guest bag could not be merged.' });
+          await useCartStore.getState().hydrate().catch(() => undefined);
+        }
+        await useWishlistStore.getState().mergeGuestWishlist().catch(async () => { await useWishlistStore.getState().hydrate().catch(() => undefined); });
+        return user;
       },
-
-      logout: () => set({ user: null, isAuthenticated: false }),
-
-      updateUser: (updates) =>
-        set((state) => ({
-          user: state.user ? { ...state.user, ...updates } : null,
-        })),
+      hydrate: async () => {
+        if (!get().isAuthenticated) return;
+        set({ isLoading: true, hydrationError: null });
+        try {
+          const user = await authService.getCurrentUser();
+          set({ user, isAuthenticated: !!user });
+        } catch (error) {
+          const apiError = error as ApiError;
+          if (apiError.code === 'UNAUTHORIZED' || apiError.code === 'HTTP_401') {
+            clearAuthTokens();
+            set({ user: null, isAuthenticated: false, hydrationError: apiError.message });
+          } else {
+            set({ hydrationError: apiError.message || 'Unable to refresh your account right now.' });
+          }
+        } finally { set({ isLoading: false }); }
+      },
+      logout: async () => {
+        try { await authService.logout(); } catch {
+          // Local logout remains authoritative when the revocation request is unavailable.
+        } finally {
+          set({ user: null, isAuthenticated: false });
+          useCartStore.setState({ items: [], promoCode: undefined, discount: 0 });
+          useWishlistStore.getState().handleLogout();
+          await useCartStore.getState().hydrate().catch(() => undefined);
+        }
+      },
+      updateUser: async (updates) => {
+        const allowed = { firstName: updates.firstName, lastName: updates.lastName, avatar: updates.avatar, marketingOptIn: updates.marketingOptIn };
+        const payload = Object.fromEntries(Object.entries(allowed).filter(([, value]) => value !== undefined));
+        const user = await profileService.updateProfile(payload);
+        set({ user });
+      },
+      replaceUser: (user) => set({ user, isAuthenticated: true }),
     }),
-    { name: 'vestra-auth' }
+    { name: 'vestra-auth', partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }) }
   )
 );

@@ -4,13 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { ProductCard } from '@/components/product/product-card';
 import { getFeatured, getNewIn, getSale } from '@/services/productService';
 import { getRecommendationsByPage } from '@/services/recommendationService';
-import { mockCollections } from '@/mocks/categories';
+import { getCollections } from '@/services/categoryService';
 
 export function HomePage() {
   const { data: featured } = useQuery({ queryKey: ['featured'], queryFn: getFeatured });
   const { data: newArrivals } = useQuery({ queryKey: ['new-in'], queryFn: getNewIn });
   const { data: sale } = useQuery({ queryKey: ['sale'], queryFn: getSale });
   const { data: recommendations } = useQuery({ queryKey: ['recs-home'], queryFn: () => getRecommendationsByPage('homepage') });
+  const { data: collections } = useQuery({ queryKey: ['collections'], queryFn: getCollections });
 
   return (
     <div>
@@ -79,12 +80,12 @@ export function HomePage() {
                 </h3>
 
                 <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-                  Find a recommended size using your measurements and fit preferences.
+                  View measurement guidance while the Phase 13 ML recommendation service is unavailable.
                 </p>
               </div>
 
               <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
-                Find your size
+                View size guide
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
               </span>
             </Link>
@@ -136,7 +137,7 @@ export function HomePage() {
         <div className="container-vestra">
           <h2 className="font-display text-2xl lg:text-3xl mb-6 text-center">Shop by Collection</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {mockCollections.map((col) => (
+            {(collections ?? []).map((col) => (
               <Link key={col.id} to={`/collection/${col.slug}`} className="group relative overflow-hidden rounded-xl aspect-[4/5]">
                 <img src={col.image} alt={col.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />

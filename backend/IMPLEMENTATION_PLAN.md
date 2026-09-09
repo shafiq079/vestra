@@ -1,10 +1,10 @@
 # VESTRA — Backend Implementation Plan
 
-**Status:** agreed sequence — Phase 0A complete, Phase 0B not started
-**Branch:** `backend-development`
+**Status:** Phases 0A–11 complete and merged · **Phase 12 in progress / deployment pending owner production verification**
+**Integration branch:** `backend-development` — every phase is developed on its own scoped branch and merged in by pull request
 **Scope owner:** project owner (dissertation author)
 
-This document records the agreed, ordered sequence for building the VESTRA backend. It is the single source of truth for *what happens when*. Working rules live in [CLAUDE.md](../CLAUDE.md); standing project rules live in [agents.md](../agents.md).
+This document records the agreed, ordered sequence for building the VESTRA backend. It is the single source of truth for *what happens when*. The working agreement — scope boundaries, contracts, secret handling and Git workflow — lives in [AGENTS.md](../AGENTS.md), which is authoritative for *how* work is done.
 
 Phases are executed **one at a time, in order**. A phase is not started until its dependencies are met and the owner has requested it.
 
@@ -39,7 +39,25 @@ The frontend already exists and defines the contract. **The backend conforms to 
 | Auth transport | `Authorization: Bearer <token>` |
 | Error body | `{ code, message, details? }` |
 | Route names | the 11 modules in `frontend/src/services/` |
-| Mock toggle | `VITE_USE_MOCK_API` must keep working |
+| Production data path | Express API only; the owner retired `VITE_USE_MOCK_API` in Phase 10 |
+
+### Repository and deployment layout — two independent applications
+
+One Git repository, **two independent npm applications**. This is fixed. **npm workspaces are not used and must not be reintroduced.**
+
+| Application | Own manifest + lockfile | Deploys to | Deployment root |
+|---|---|---|---|
+| `frontend/` | `frontend/package.json` + `frontend/package-lock.json` | Vercel | `frontend/` |
+| `backend/` | `backend/package.json` + `backend/package-lock.json` | Render | `backend/` |
+
+Consequences that bind every phase:
+
+- **No root `package-lock.json`.** Dependency locking lives inside each application only.
+- **No `workspaces` field in the root `package.json`.**
+- Each application installs from **its own** manifest and lockfile. `cd frontend && npm ci` and `cd backend && npm ci` must each succeed on their own, with no root `node_modules` present.
+- **Backend dependencies are installed inside `backend/`** and update `backend/package-lock.json` only. Never install a backend dependency from the repository root.
+- Root `package.json` scripts are **developer convenience wrappers only**, delegating with `npm --prefix <dir> run <script>` — never `--workspace`.
+- Committed lockfiles must stay **portable** for Vercel/Render Linux builds. Never repair a local install by hand-placing packages into `node_modules`, and never report a build as passing when it only passes because of out-of-lockfile binaries.
 
 ---
 
@@ -57,24 +75,24 @@ Consequence: by the time Phase 11 begins, every route group already has working 
 
 ## Phase index
 
-| Phase | Title | Depends on |
-|---|---|---|
-| 0A | Development setup — governance and architecture documents | — |
-| 0B | Development setup — minimal `backend/package.json` + workspace registration (no scripts) | 0A |
-| 1 | Express/TypeScript foundation + MongoDB connection + health endpoint + test tooling + root backend scripts | 0A **and** 0B |
-| 2 | Database/schema design | 1 |
-| 3 | Product catalogue, categories and collections API | 2 |
-| 4 | Authentication, users, profiles and addresses | 2 |
-| 5 | Cart and wishlist | 3, 4 |
-| 6 | Checkout, orders and inventory updates | 3, 4, 5 |
-| 7 | Admin APIs | 3, 4, 6 |
-| 8 | Gradual frontend/backend integration | 3–7 |
-| 9 | Product recommendations | 3, 6 |
-| 10 | Virtual Try-On backend/provider abstraction | 1, 3, 4 |
-| 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) |
-| 12 | Backend deployment and production configuration | 11 |
-| 13 | ML Size Recommendation integration (**LAST**) | 12 + client-supplied model |
-| 14 | Final end-to-end/dissertation validation | 13 |
+| Phase | Title | Depends on | Status |
+|---|---|---|---|
+| 0A | Development setup — governance and architecture documents | — | **Complete** |
+| 0B | Development setup — independent `backend/package.json` + `backend/package-lock.json`, root `workspaces` removed (no scripts) | 0A | **Complete** |
+| 1 | Express/TypeScript foundation + MongoDB connection + health endpoint + test tooling + root backend scripts | 0A **and** 0B | **Complete and merged** |
+| 2 | Database/schema design | 1 | **Complete and merged** |
+| 3 | Product catalogue, categories and collections API | 2 | **Complete and merged** |
+| 4 | Authentication, users, profiles and addresses | 2 | **Complete and merged** |
+| 5 | Cart and wishlist | 3, 4 | **Complete and merged** |
+| 6 | Checkout, orders and inventory updates | 3, 4, 5 | **Complete and merged** |
+| 7 | Admin APIs | 3, 4, 6 | **Complete and merged** |
+| 8 | Gradual frontend/backend integration | 3–7 | **Complete and merged** |
+| 9 | Product recommendations | 3, 6 | **Complete and merged** |
+| 10 | Cloudinary + Pixelcut Virtual Try-On and production mock retirement | 1, 3, 4, 8, 9 | **Complete and merged** |
+| 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) | **Complete and merged** |
+| 12 | Backend deployment and production configuration | 11 | **In progress / deployment pending owner production verification** |
+| 13 | ML Size Recommendation integration (**LAST**) | 12 + client-supplied model | Blocked — awaiting client model |
+| 14 | Final end-to-end/dissertation validation | 13 | Not started |
 
 ---
 
@@ -88,61 +106,64 @@ Phase 0 is split into two explicit steps. **0A is documentation only and is comp
 Establish the governance, scope boundaries, and agreed roadmap for backend development before any code or configuration is written, so that later work is controlled and reviewable rather than exploratory.
 
 **Main deliverables**
-- `CLAUDE.md` at the repository root: backend development authorised, `backend/` as primary write scope, frontend read-only, stack fixed, secret-handling rules, one-task-at-a-time workflow, Git restrictions.
+- A root working-agreement document: backend development authorised, `backend/` as primary write scope, frontend read-only, stack fixed, secret-handling rules, one-task-at-a-time workflow, Git restrictions. Delivered at the time as `CLAUDE.md`; **since consolidated into [AGENTS.md](../AGENTS.md)**, which is now the authoritative working agreement. `CLAUDE.md` is retained only as a pointer.
 - `backend/IMPLEMENTATION_PLAN.md` (this document): the full Phase 0A–14 sequence with objectives, deliverables, dependencies, and completion criteria.
 - Confirmation of the existing `backend/` scaffold: `src/{config,controllers,middleware,models,routes,services,utils,validators}`, `tests/`, `uploads/`.
 - Confirmation that `.gitignore` already excludes `.env` and `.env.*` while permitting `.env.example`.
-- Recorded finding: the root `package.json` `workspaces` array lists `frontend` only, and `backend/` contains no `package.json`, so `backend` is **not** yet a valid npm workspace. Creating the minimal manifest and wiring the workspace in are both deferred to Phase 0B.
+- Recorded finding: at the time of Phase 0A the root `package.json` carried a `workspaces` array and `backend/` contained no `package.json`. Both were addressed in Phase 0B — which, after the owner's later decision, **removed the root `workspaces` field entirely** and gave `backend/` its own independent manifest and lockfile instead.
 
 **Dependencies**
 None. This is the entry step.
 
 **Completion criteria**
-- Both documents exist and are internally consistent with `agents.md`.
+- Both documents exist and are internally consistent with `AGENTS.md`.
 - No source code, dependency, or `package.json` change has been made.
 - No `.env` contents have been read or displayed.
 - `git status` shows only the new documentation files, and `git diff --check` is clean.
 
-### Phase 0B — Backend workspace and tooling wiring
+### Phase 0B — Independent backend package (no workspaces)
 
 **Objective**
-Make `backend/` a valid, recognised npm workspace so that Phase 1 can install dependencies through the normal workflow — without altering the frontend build in any way. **Workspace registration only: no scripts, no dependencies, no code.**
+Give `backend/` its own self-contained npm package — its own `package.json` and its own `package-lock.json` — so that Phase 1 can install backend dependencies entirely inside `backend/`, without npm workspaces and without any shared dependency tree. **Package independence only: no scripts, no dependencies, no code.**
 
-> **Phase 0B and Phase 1 are the only steps before Phase 8 that may modify the root `package.json`, and each may do so *only* when the project owner explicitly requests that phase's implementation.** Phase 0B may change the `workspaces` array; Phase 1 may add the backend-delegating scripts. Until the relevant request is made, the root `package.json` stays untouched. Recording the intent here is not authorisation to act on it.
+> **Superseded approach — do not restore.** An earlier iteration of this phase registered `backend` in a root `workspaces` array and let both applications share one root `package-lock.json`. That was **reversed** by owner decision in favour of two fully independent applications (see *Repository and deployment layout* above). The root `package.json` now has **no `workspaces` field**, there is **no root `package-lock.json`**, and neither may be reintroduced.
 
-**Sequencing requirement:** npm resolves a workspace by reading a `package.json` in the workspace directory. Adding `backend` to the `workspaces` array without one present would make `npm install` fail. **Phase 0B must therefore create a minimal `backend/package.json` itself** — creating it in Phase 1 would be too late.
+> **Phase 0B and Phase 1 are the only steps before Phase 8 that may modify the root `package.json`, and each may do so *only* when the project owner explicitly requests that phase's implementation.** Phase 0B removes the `workspaces` field and converts the frontend convenience scripts to `npm --prefix`; Phase 1 may add the backend-delegating scripts. Recording the intent here is not authorisation to act on it.
 
 **Why no scripts in this phase:** a root `dev:backend` or `test:backend` script would delegate to a `backend` script that does not exist yet, so it would be broken from the moment it was written. Root convenience scripts are therefore created in **Phase 1**, at the same time as the backend scripts they call.
 
-**Main deliverables — exactly four things**
-1. **A minimal `backend/package.json`, created in this phase**, so that `backend` is a valid npm workspace:
+**Main deliverables — exactly five things**
+1. **A minimal `backend/package.json`**, so that `backend/` is an installable package in its own right:
    - metadata only — `name`, `version`, `description`
    - `"private": true`, matching the root and frontend convention
    - **no `dependencies` and no `devDependencies`** — nothing is installed in this phase
    - **no `scripts`** — the real `dev` / `build` / `start` / `test` scripts are Phase 1's job
    - **no backend source code, no `tsconfig.json`, no entry point** — this phase creates a manifest, not an application
-2. **Add `backend` to the root `package.json` `workspaces` array**, alongside the existing `frontend` entry. This is the *only* change to the root manifest in this phase — **no new root scripts**, and no change to the existing `dev` / `build` / `preview` scripts.
-3. **Update the root `package-lock.json` by running `npm install`.** The lockfile will change to record the new workspace link. **This is a legitimate and expected result of adding the workspace, not an unintended side effect** — report it as a changed file. No new third-party package should appear in the lockfile diff, since this phase installs no dependencies.
-4. **Verify the existing frontend scripts remain unchanged**, in behaviour as well as in name — `npm run dev`, `npm run build`, and `npm run preview` must work exactly as they did before.
+2. **A `backend/package-lock.json` belonging only to `backend`**, generated by running `npm install` **inside `backend/`**. With no dependencies declared it is a minimal lockfile recording just the root package — that is correct and expected.
+3. **Remove the `workspaces` field from the root `package.json` entirely**, and convert the existing frontend convenience scripts from workspace syntax to independent prefix syntax — `npm --prefix frontend run dev` / `build` / `preview`. **No new root scripts**; the root manifest declares no dependencies and exists purely as developer convenience.
+4. **Delete the root `package-lock.json`.** Dependency locking lives only in `frontend/package-lock.json` and `backend/package-lock.json`.
+5. **Ensure `frontend/package-lock.json` is valid and in sync with `frontend/package.json`.** If it is stale, synchronise it with `npm install --package-lock-only` (which preserves existing pins). `frontend/package.json` itself must not change, dependencies must not be intentionally upgraded, and `npm audit fix` must not be run.
 
 **Supporting notes (not code changes)**
-- A recorded decision on the workspace layout: whether backend and frontend share the single root lockfile (npm workspaces default) or the backend is kept fully standalone. Document the choice and the reason.
+- The recorded layout decision: **two independent applications, one lockfile each, no workspaces** — chosen so `frontend/` deploys to Vercel and `backend/` deploys to Render from their own subdirectory roots, each installing only what it needs.
 - Any `.gitignore` addition the backend build genuinely needs (e.g. compiled `backend/dist`) is *proposed for owner approval*, not applied silently. Note that the existing root `.gitignore` already ignores `dist` at any depth, so this may well be unnecessary.
 
 **Dependencies**
-Phase 0A (governance and plan agreed). No dependency on Phase 1 — Phase 0B strictly precedes it, because Phase 1 cannot install into a workspace that does not resolve.
+Phase 0A (governance and plan agreed). No dependency on Phase 1 — Phase 0B strictly precedes it, because Phase 1 needs a `backend/package.json` and `backend/package-lock.json` to install into.
 
 **Completion criteria**
 - The owner explicitly requested this step before any `package.json` change was made.
 - `backend/package.json` exists, is `private: true`, carries metadata only, and declares **no** dependencies, **no** devDependencies, and **no** scripts.
+- `backend/package-lock.json` exists and belongs only to `backend`.
 - No backend source file, `tsconfig.json`, or entry point was created in this phase.
-- **The only change to the root `package.json` is the added `workspaces` entry** — no `dev:backend`, `build:backend`, `test:backend`, or `start:backend` script was added here, and no existing script was altered.
-- `npm install` at the root completes successfully and resolves **both** workspaces — `frontend` and `backend`.
-- The resulting root `package-lock.json` change is limited to registering the new workspace; no new third-party package appears in the diff.
-- `npm run dev`, `npm run build`, and `npm run preview` still behave exactly as before for the frontend — verified, not assumed.
-- `frontend/package.json` is unmodified.
-- The workspace-layout decision is written down.
-- The changed-file report names the root `package.json`, the new `backend/package.json`, and the root `package-lock.json`.
+- The root `package.json` has **no `workspaces` field**, and its `dev` / `build` / `preview` scripts use `npm --prefix frontend`. No `dev:backend`, `build:backend`, `test:backend`, or `start:backend` script was added here.
+- **No root `package-lock.json` exists.**
+- `cd frontend && npm ci` succeeds, and `cd frontend && npm run build` succeeds — from `frontend/` alone, with no root `node_modules` present.
+- `cd backend && npm ci` succeeds.
+- Root `npm run build` still builds the frontend, delegating via `npm --prefix frontend`.
+- `frontend/package.json` is unmodified; any `frontend/package-lock.json` change is a synchronisation, not an upgrade.
+- Committed lockfiles are **portable** — they contain the Linux native platform packages the Vercel/Render builds need, and no install or build was made to pass by hand-placing packages into `node_modules`.
+- The layout decision is written down.
 - No secret and no `.env` file entered the index.
 
 ---
@@ -153,7 +174,7 @@ Phase 0A (governance and plan agreed). No dependency on Phase 1 — Phase 0B str
 Stand up a minimal, type-safe, runnable Express server that connects to MongoDB Atlas and proves the whole path is alive via a health endpoint — no business logic yet — **and establish the test harness that every subsequent phase will extend.**
 
 **Main deliverables**
-- **Complete the existing `backend/package.json`** created in Phase 0B — this phase extends that manifest rather than creating it. Add the runtime and dev dependencies, the real scripts, and any engine or entry-point fields needed. Keep `private: true`. The `workspaces` registration is **not** done here — it was done in Phase 0B.
+- **Complete the existing `backend/package.json`** created in Phase 0B — this phase extends that manifest rather than creating it. Add the runtime and dev dependencies, the real scripts, and any engine or entry-point fields needed. Keep `private: true`. **Install from inside `backend/`**, so only `backend/package-lock.json` changes — never install backend dependencies from the repository root, and never add a `workspaces` field.
 - `backend/tsconfig.json` (strict mode) — created in this phase.
 - Runtime dependencies: `express`, `mongoose`, `dotenv`, `cors`, `helmet`, `morgan`. Dev: `typescript`, `ts-node`/`tsx`, `nodemon`, `@types/*`.
 - Application entry split into `app.ts` (middleware + router wiring, exportable for tests) and `server.ts` (listen + lifecycle), so the app can be tested without binding a port.
@@ -164,7 +185,7 @@ Stand up a minimal, type-safe, runnable Express server that connects to MongoDB 
 - CORS configured for the Vite dev origin.
 - `backend/.env.example` documenting every required variable **by name and purpose only** (e.g. `PORT`, `MONGODB_URI`, `NODE_ENV`, `CORS_ORIGIN`).
 - `npm run dev` / `npm run build` / `npm start` scripts; server listens on port 5000 to match the frontend default.
-- **Root convenience scripts, created here — not in Phase 0B — because they delegate to the backend scripts this phase introduces.** Add `dev:backend`, `build:backend`, `test:backend`, and `start:backend` if useful to the root `package.json`, each delegating via `npm run <script> --workspace=backend` to match the existing frontend delegation style. Every new root script must be runnable the moment it is added — a root script pointing at a non-existent backend script is a defect, not a placeholder. The existing `dev` / `build` / `preview` scripts must keep their current names and behaviour, unchanged.
+- **Root convenience scripts, created here — not in Phase 0B — because they delegate to the backend scripts this phase introduces.** Add `dev:backend`, `build:backend`, `test:backend`, and `start:backend` if useful to the root `package.json`, each delegating via `npm --prefix backend run <script>` to match the existing frontend delegation style. **Never `--workspace`** — there are no workspaces. Every new root script must be runnable the moment it is added — a root script pointing at a non-existent backend script is a defect, not a placeholder. The existing `dev` / `build` / `preview` scripts must keep their current names and behaviour, unchanged.
 
 **Test deliverables (the harness all later phases build on)**
 - Test runner configured for TypeScript — Jest or Vitest — with `supertest` for HTTP-level assertions against the exported `app`, plus a `npm test` script added to `backend/package.json`.
@@ -174,7 +195,7 @@ Stand up a minimal, type-safe, runnable Express server that connects to MongoDB 
 - Confirmation that the suite runs green from a clean checkout with no manual setup beyond environment variables.
 
 **Dependencies**
-**Phase 0A and Phase 0B — both unconditionally.** Phase 0A supplies the agreed governance and plan; Phase 0B supplies the resolvable `backend` workspace and the minimal `backend/package.json` this phase extends. Phase 0B cannot be bypassed: installing dependencies into `backend/` before it is a registered workspace with a valid manifest is out of sequence, and a standalone `backend/` install is **not** an acceptable substitute.
+**Phase 0A and Phase 0B — both unconditionally.** Phase 0A supplies the agreed governance and plan; Phase 0B supplies the independent `backend/package.json` and `backend/package-lock.json` this phase extends and installs into. Phase 0B cannot be bypassed: installing dependencies into `backend/` before it is a valid standalone package is out of sequence.
 
 **Completion criteria**
 - `backend/package.json` has been extended in place — Phase 0B's `private: true` metadata is preserved, not overwritten by a freshly generated manifest.
@@ -188,6 +209,24 @@ Stand up a minimal, type-safe, runnable Express server that connects to MongoDB 
 - **Tests run against the isolated test database, demonstrably not the development database.**
 - No secret appears in source, logs, test fixtures, or documentation.
 - The frontend still builds and still runs unchanged in mock mode.
+
+**Implementation status — Complete and merged**
+
+Delivered and merged into `backend-development`. What was actually verified, and what was not:
+
+*Verified*
+- The Express 5 / TypeScript foundation is complete: `app.ts` / `server.ts` split, `src/config/env.ts` (Zod, fail-fast, secret-safe), `src/config/database.ts` (Mongoose connection, events, graceful shutdown), `GET /api/health`, the centralised error handler and 404 handler emitting `{ code, message, details? }`, CORS, and `helmet`.
+- `npm run build` and `npm run typecheck` both pass with zero TypeScript errors under strict mode.
+- **31 backend tests pass** (Vitest + Supertest, 4 files), covering the health endpoint, the 404 shape, the error-shape contract with no stack leakage, the lifecycle/shutdown routine, and the test-database isolation guarantees themselves.
+- The health, error and runtime boot flow was exercised end to end — including a real server start returning `200` from `GET /api/health` with `database.status: "connected"` — **against an isolated `mongodb-memory-server` instance**.
+- Tests run against that isolated in-memory database, demonstrably not a development or production database. See [tests/README.md](tests/README.md).
+
+*Not verified — environment limitation*
+- **A real MongoDB Atlas connection was not established or verified on the development machine.** The Atlas attempt failed during the `SRV`/`TXT` DNS resolution required by `mongodb+srv://`, before MongoDB Atlas could be reached.
+- The observed failure was therefore an **environment/network DNS limitation, not an application-code failure**. Changing the Atlas IP access list could not resolve it because DNS resolution occurs before Atlas evaluates the incoming connection. Atlas credentials and authentication were not verified from this machine because Atlas was never reached.
+- Consequently the explicit Phase 1 completion criterion *"`npm run dev` starts cleanly and logs a successful MongoDB Atlas connection"* was **not verified against Atlas**. The equivalent Express/Mongoose/runtime/database path was successfully verified against the isolated `mongodb-memory-server` environment, including server boot and `GET /api/health` returning a connected database state. Phase 1 remains accepted as complete with this documented environment limitation. **Real Atlas connectivity remains a Phase 12 deployment/environment verification item**, to be confirmed on a network that permits `SRV`/`TXT` resolution, where the deployed `/api/health` must report a healthy Atlas connection.
+- **MongoDB Atlas remains the intended database for the project** — target architecture unchanged.
+- **This does not change the Phase 2 implementation scope.** Phase 2 is schema/model design and its tests run against the same isolated in-memory database, so Phase 2 remains unblocked by the Atlas gap.
 
 ---
 
@@ -387,7 +426,7 @@ Provide the admin management surface the existing admin UI already expects, prot
 - Inventory: `GET /api/admin/inventory` and `PATCH /api/admin/inventory/:productId/variants/:variantId`.
 - User management, order management (status transitions), review moderation, and promotions endpoints as the admin services expect.
 - `authoriseRole('admin')` on every admin route; admin mutations audit-logged without logging secrets or personal data beyond what is necessary.
-- Single-source-of-truth guarantee: admin catalogue writes and storefront catalogue reads hit the same collections, so an admin change is visible on the storefront (mirroring the shared-mock rule in `agents.md`).
+- Single-source-of-truth guarantee: admin catalogue writes and storefront catalogue reads hit the same collections, so an admin change is visible on the storefront (mirroring the shared-mock rule in `AGENTS.md`).
 
 **Test deliverables (this phase's functionality)**
 - Integration tests for every endpoint named in `adminService.ts`, run with an admin token.
@@ -421,7 +460,7 @@ Switch the frontend from mock services to the real API **incrementally and rever
 **Main deliverables**
 - A documented, agreed switch order, lowest risk first: catalogue reads → auth → cart/wishlist → orders → admin.
 - Per-domain enabling of the real path inside `frontend/src/services/*` only, leaving page components, stores, hooks, routing, and styling untouched.
-- `VITE_USE_MOCK_API` retained as a working rollback switch; mock mode must still run with the backend offline.
+- `VITE_USE_MOCK_API` was retained at Phase 8. The owner explicitly retired it and all production mock branches in Phase 10; this historical Phase 8 deliverable is superseded.
 - `VITE_API_BASE_URL` verified against the deployed and local backend.
 - CORS, cookie/token, and preflight behaviour confirmed against the real Vite origin.
 - Real-token wiring into the existing `localStorage['vestra-auth-token']` mechanism — transport unchanged.
@@ -431,7 +470,7 @@ Switch the frontend from mock services to the real API **incrementally and rever
 **Test deliverables (this phase's functionality)**
 - Backend suite re-run after each domain is switched, confirming no regression was introduced by integration work.
 - Frontend verification per domain: `npm run typecheck` and `npm run build` pass with zero errors after every service-module change.
-- A mock-mode regression check per domain: with `VITE_USE_MOCK_API=true` and the backend stopped, the app still runs — proving the rollback switch is real, not nominal.
+- At the time of Phase 8, a mock-mode regression check proved the rollback path. Phase 10 later removed that path by explicit owner decision.
 - Manual browser verification per domain, recorded in the integration log with what was checked.
 - Error-path checks against real failures (backend down, 401, 404, 500) confirming the existing Axios interceptor still produces the expected UI states.
 
@@ -440,7 +479,7 @@ Phases 3–7 (the endpoints being integrated, each already covered by its own te
 
 **Completion criteria**
 - Each switched domain works end to end against the real backend in the browser.
-- `VITE_USE_MOCK_API=true` still fully restores mock behaviour with no backend running.
+- Historical Phase 8 criterion, superseded by the Phase 10 production-mock retirement decision.
 - `npm run build` and `npm run typecheck` pass with zero errors.
 - **The backend suite still passes after every domain switch, with real output reported.**
 - No page component, store, layout, route guard, or style file was modified — changes confined to service modules and environment configuration.
@@ -486,41 +525,35 @@ Phase 3 (catalogue), Phase 6 (order history as a behavioural signal). Best done 
 ## Phase 10 — Virtual Try-On backend/provider abstraction
 
 **Objective**
-Move Virtual Try-On from frontend mock to a real server-mediated integration, with the provider hidden behind an abstraction and provider credentials never leaving the server.
+Deliver genuine Pixelcut Virtual Try-On through Express, with temporary private Cloudinary
+storage, asynchronous lifecycle handling, and no production fake-success fallback.
 
 **Main deliverables**
-- `POST /api/virtual-try-on`, `GET /api/virtual-try-on/eligible`, `GET /api/virtual-try-on/product/:productId`.
-- A `VirtualTryOnProvider` interface plus at least a mock provider implementation, so the concrete third-party provider is swappable without touching routes, controllers, or the frontend.
-- Multipart image upload handling (`multer`) with MIME-type and size limits and rejection of non-image payloads.
-- Provider credentials read only from validated env config; **never** returned to the client, logged, or embedded in a response.
-- Rate limiting and per-user quota on the VTO endpoint, plus provider timeout and failure handling that returns a correctly shaped error.
-- Privacy-first image lifecycle: uploaded customer photographs are processed transiently and **not** persisted beyond what the request requires; temporary files are cleaned up deterministically. The retention rule is documented explicitly.
-- Consent enforced server-side — a request without `consentGiven` is rejected, not silently processed.
-- Results honestly flagged via `isDemo` while a mock provider is in use; no false claim of real provider processing.
-- Optional feedback capture (`helpful` / `not_helpful`) for the admin VTO usage metric.
+- Eligibility/product/submission routes plus owner-scoped status, cancellation and feedback routes.
+- Provider-neutral `VirtualTryOnProvider` with the real Pixelcut adapter; controllers contain no provider HTTP logic and production has no mock fallback.
+- Cloudinary storage abstraction: authenticated permanent catalogue uploads and random-ID private temporary customer-photo uploads. Pixelcut receives an expiring authenticated download URL, not a normal non-expiring signed asset URL.
+- Exactly one JPEG/PNG via Multer memory storage, maximum 10 MB, verified file signature and 64–6000 pixel dimensions, with tightly bounded multipart fields.
+- Consent validation before storage/submission; MongoDB authority for publication, stock, colour and explicitly suitable garment imagery.
+- Persisted pending/running/completed/failed/cancelled jobs, safe provider errors, bounded request timeouts, an overall deadline, cancellation, result expiry and reconciliation of abandoned jobs/failed deletions.
+- Authenticated user ownership or guest session plus per-job capability; invalid bearer tokens do not become guests.
+- Atomic persistent rate, UTC-day and concurrent limits; VESTRA idempotency reservations prevent duplicate generation, and uncertain submissions are never automatically resubmitted.
+- Helpful/not-helpful feedback and admin metrics based on completed jobs/submitted feedback; Phase 13 metrics remain zero.
+- Real frontend upload, polling, cancellation, feedback and expiry while preserving the existing design. Retire `VITE_USE_MOCK_API`, production mock branches and `frontend/src/mocks/` by explicit owner authorisation; unavailable functionality reports honestly.
 
 **Test deliverables (this phase's functionality)**
-- Integration tests for all three VTO routes against a stub provider — no real provider call in the test suite.
-- A provider-swap test: a second `VirtualTryOnProvider` implementation is selected by configuration alone, proving the abstraction holds.
-- Upload-rejection tests: oversized file, non-image MIME type, and missing file each rejected with the correct status and error shape.
-- A consent test asserting a request without `consentGiven` is rejected before any provider call is attempted.
-- A temporary-file cleanup test asserting no uploaded image remains on disk after the request completes, including on the failure path.
-- Provider-failure tests: timeout and error responses surface as a correctly shaped error, never a stack trace or a leaked provider payload.
-- A test asserting no provider credential appears in any response body or log line.
-- A test asserting `isDemo` is `true` while a mock/stub provider is in use.
+- Express integration tests with injected provider/storage doubles for eligibility and colour authority, validation, consent-before-storage, lifecycle, cancellation, idempotency, quotas/concurrency, owner isolation, metadata privacy, cleanup/recovery, feedback and metrics.
+- Real Pixelcut/Cloudinary adapter mapping tests use mocked HTTP/SDK transports. Automated tests make no live chargeable request.
+- Frontend type-check/build and audits for production mock imports, secrets, customer-photo artefacts and lockfile boundaries.
 
 **Dependencies**
-Phase 1 (foundation and test harness), Phase 3 (product/variant resolution for eligibility and colour), Phase 4 (user identity, quota, consent audit).
+Phases 1, 3 and 4, plus merged Phase 8 real API integration and Phase 9 recommendations.
 
 **Completion criteria**
-- A try-on request completes through Express against the mock provider and returns a result assignable to `VirtualTryOnResult`.
-- No provider key is present in any response, log line, or client-visible artefact.
-- Requests without consent, with an oversized file, or with a non-image file are rejected with correct status codes.
-- Temporary uploads are provably removed after processing; retention behaviour matches the documented policy.
-- The provider can be swapped by changing configuration alone — demonstrated by a second implementation of the interface.
-- The existing product-page try-on flow still carries the exact selected product and colour, per `agents.md`.
-- `isDemo` accurately reflects whether a real provider was used.
-- **VTO route, provider-swap, upload-rejection, consent, and cleanup tests added and passing; the whole suite still green.**
+- The genuine Pixelcut adapter is the only production provider and completed results carry `isDemo: false`; no live call is claimed unless separately authorised and performed.
+- Cloudinary/Pixelcut credentials remain server-only, customer-photo bytes and access URLs are never persisted, and all terminal/expiry cleanup paths are recoverable.
+- The existing product/colour picker and visual presentation remain intact; cart addition requires a valid chosen variant and size.
+- Phase 9 remains functional, Phase 13 reports unavailable, and every implemented production service uses Express rather than fake data.
+- **Phase 10 tests, the full backend suite, backend build/type-check, frontend type-check/build and repository audits pass.**
 
 ---
 
@@ -558,9 +591,21 @@ Phases 1–10 — all of which already carry their own tests. This phase audits 
 - The audit result is recorded with remaining items justified.
 - The suite is order-insensitive and touches no development or production data.
 
+**Implementation status — complete and merged**
+
+The route inventory, authorisation result, security and validation changes, dependency-audit disposition, coverage evidence and limitations are recorded in [PHASE_11_AUDIT.md](PHASE_11_AUDIT.md).
+
 ---
 
 ## Phase 12 — Backend deployment and production configuration
+
+**Implementation status — In progress / deployment pending owner production verification**
+
+Repository-side Render configuration and deployment/rollback guidance are prepared in
+[`render.yaml`](../render.yaml) and [DEPLOYMENT.md](DEPLOYMENT.md). Hosted completion criteria remain
+pending until the owner promotes the reviewed integration branch to `main`, configures Render,
+Atlas and Vercel, and records successful production smoke checks. Repository preparation alone does
+not mark this phase complete.
 
 **Objective**
 Deploy the hardened backend so the frontend can reach it from a hosted environment, with production configuration separated from development.
@@ -569,7 +614,7 @@ Deploy the hardened backend so the frontend can reach it from a hosted environme
 
 **Main deliverables**
 - Production build and start pipeline (`tsc` output run by `node`, not a dev runner).
-- Hosting configuration for the chosen platform, with the port bound from the environment.
+- Hosting configuration for **Render, with `backend/` as the service root** — installing from `backend/package-lock.json` only, with the port bound from the environment. The frontend deploys separately to Vercel with `frontend/` as its project root; the two deployments share no build.
 - Production environment variables set in the platform's secret store — **never** committed, and never printed.
 - MongoDB Atlas production readiness: separate database or cluster, least-privilege database user, IP/network access rules, and a backup expectation recorded.
 - Production CORS restricted to the deployed frontend origin.
@@ -610,7 +655,7 @@ Integrate the client-supplied Python ML size-recommendation service through Expr
 **Main deliverables**
 - A separate Python service (e.g. FastAPI/Flask) hosting the client-supplied model, deployed independently of Express.
 - Express proxy endpoints at the paths the frontend already calls: `GET /api/size-recommendation/schema/:productId` and `POST /api/size-recommendation`.
-- **Model-determined form schema:** the backend/model decides which measurement fields are required, returned as `SizeRecommendationFormSchema` (`fields` with `key`, `label`, `inputType`, `required`, `min`/`max`, `unit`, `helpText`, `displayOrder`, `options`). No permanent hard-coded input set — the frontend stays model-agnostic per `agents.md`.
+- **Model-determined form schema:** the backend/model decides which measurement fields are required, returned as `SizeRecommendationFormSchema` (`fields` with `key`, `label`, `inputType`, `required`, `min`/`max`, `unit`, `helpText`, `displayOrder`, `options`). No permanent hard-coded input set — the frontend stays model-agnostic per `AGENTS.md`.
 - Per-product model selection via `sizeModelKey`, and `sizeRecommendationEligible` respected.
 - Result mapping to `SizeRecommendationResult`: `recommendedSize`, `confidencePercent`, `confidenceLabel`, `expectedFit`, `explanation`, optional `alternativeSize`, `productNote`, `measurementSummary`, and a `disclaimer`.
 - Metric/imperial unit handling and validated measurement input, collecting **only** the fields the active schema declares.
@@ -641,7 +686,7 @@ Phase 12 (deployable, hardened, already-deployed backend) **and** delivery of th
 - No ML credential or internal service URL is exposed to the browser.
 - With the ML service deliberately stopped, the product page still renders and Add to Bag still works.
 - Copy reviewed: guidance-not-guarantee, no body-shaming language.
-- Size Recommendation appears beside the size selector, preserving the product-page hierarchy in `agents.md`.
+- Size Recommendation appears beside the size selector, preserving the product-page hierarchy in `AGENTS.md`.
 - **Size-recommendation tests added and passing, and the full Phase 11 suite re-run green against the updated backend.**
 - The two-service deployment and rollback procedure is documented and has been followed at least once.
 
@@ -679,12 +724,14 @@ Phase 13, and therefore all preceding phases.
 
 ## Working rules that apply to every phase
 
+These are a summary for convenience. **[AGENTS.md](../AGENTS.md) is authoritative** — if the two ever disagree, AGENTS.md wins.
+
 1. **One phase, one scoped task at a time.** Finish, report, stop.
 2. **Inspect before editing.** Read the existing backend code and the relevant frontend service and types first.
-3. **`backend/` is the write scope.** `frontend/` is read-only until Phase 8, and even then only service modules and environment configuration. The root `package.json` is off limits except in Phase 0B (`workspaces` entry) and Phase 1 (backend-delegating scripts), and in each case only on the owner's explicit request.
+3. **`backend/` is the write scope.** `frontend/` is read-only until Phase 8, and even then only service modules and environment configuration. The root `package.json` is off limits except in Phase 1 (backend-delegating `npm --prefix` scripts), and only on the owner's explicit request. **Never add a `workspaces` field and never create a root `package-lock.json`.**
 4. **Conform to the frontend contract.** `frontend/src/types/index.ts` and the `frontend/src/services/` route names are fixed points.
 5. **Every implementation phase ships its own tests.** From Phase 1 onward, a phase is not complete until tests covering the functionality it introduced exist and pass. Do not defer testing to Phase 11 — Phase 11 audits and hardens, it does not backfill.
 6. **Verify after changing.** Run the relevant build, type-check, and tests. Report the real outcome, including failures.
 7. **Report changed files and limitations** at the end of every task.
 8. **Never expose or commit secrets**, and never read or print `.env` contents.
-9. **Never commit, push, merge, or switch branches** unless the project owner explicitly instructs it in that task.
+9. **Branch per phase; never work on `backend-development` or `main` directly.** Within an authorised task an agent may commit, push its scoped branch, and open or update a pull request targeting `backend-development` — then stop for review. **Merging requires explicit owner authorisation**, and no force-push, reset, rebase, history rewrite or branch deletion is permitted without it. See the Git workflow in [AGENTS.md](../AGENTS.md).

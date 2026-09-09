@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import type { MeasurementProfile } from '@/types';
+import { updateMeasurementProfile } from '@/services/profileService';
 
 export function AccountMeasurementsPage() {
   const user = useAuthStore((s) => s.user);
-  const updateUser = useAuthStore((s) => s.updateUser);
   const existing = user?.measurementProfile;
   const [form, setForm] = useState({
     height: existing?.height?.toString() || '',
@@ -25,7 +25,8 @@ export function AccountMeasurementsPage() {
     unitSystem: existing?.unitSystem || 'metric',
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  const replaceUser = useAuthStore((s) => s.replaceUser);
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const profile: MeasurementProfile = {
       id: existing?.id || `mp${Date.now()}`,
@@ -41,8 +42,10 @@ export function AccountMeasurementsPage() {
       unitSystem: form.unitSystem as 'metric' | 'imperial',
       lastUpdated: new Date().toISOString(),
     };
-    updateUser({ measurementProfile: profile });
-    toast.success('Measurements saved. Your size recommendations will be more accurate.');
+    const { id: _id, userId: _userId, lastUpdated: _lastUpdated, ...payload } = profile;
+    const saved = await updateMeasurementProfile(payload);
+    if (user) replaceUser({ ...user, measurementProfile: saved });
+    toast.success('Measurements saved');
   };
 
   const unit = form.unitSystem === 'metric' ? 'cm' : 'in';
@@ -50,12 +53,12 @@ export function AccountMeasurementsPage() {
   return (
     <div>
       <h1 className="font-display text-2xl lg:text-3xl mb-2">My Measurements</h1>
-      <p className="text-muted-foreground mb-6 max-w-2xl">Save your measurements to get accurate size recommendations across all products. Your data is private and used only to improve your shopping experience.</p>
+      <p className="text-muted-foreground mb-6 max-w-2xl">Save and update your measurements here. Automated ML size recommendation is not available until Phase 13.</p>
 
       {(!existing || Object.keys(existing).length === 0) && (
         <div className="bg-ai-background text-sm p-4 rounded-lg mb-6 flex items-start gap-3">
           <Ruler className="h-5 w-5 text-ai shrink-0 mt-0.5" />
-          <p>No measurements saved yet. Add yours below to unlock personalised size recommendations and better fit predictions.</p>
+          <p>No measurements saved yet. You can add them below for future fit tools.</p>
         </div>
       )}
 

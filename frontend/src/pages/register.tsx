@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { errorMessage } from '@/utils/errorMessage';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -19,9 +20,11 @@ export function RegisterPage() {
     try {
       await register(form);
       toast.success('Account created. Welcome to VESTRA!');
+      const mergeWarning = useAuthStore.getState().cartMergeWarning;
+      if (mergeWarning) toast.warning(`Your account was created, but your guest bag could not be merged. ${mergeWarning}`);
       navigate('/account');
-    } catch {
-      toast.error('Registration failed. Please try again.');
+    } catch (error) {
+      toast.error(errorMessage(error, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }

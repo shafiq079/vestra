@@ -1,14 +1,14 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getProducts } from '@/services/productService';
-import { getCategoryBySlug } from '@/mocks/categories';
+import { getCategory } from '@/services/categoryService';
 import { ProductCard } from '@/components/product/product-card';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function CategoryPage() {
   const { slug } = useParams();
-  const category = slug ? getCategoryBySlug(slug) : null;
+  const { data: category } = useQuery({ queryKey: ['category', slug], queryFn: () => getCategory(slug!), enabled: !!slug });
   const { data, isLoading } = useQuery({
     queryKey: ['category-products', slug],
     queryFn: () => getProducts({ category: slug ? [slug] : undefined }),

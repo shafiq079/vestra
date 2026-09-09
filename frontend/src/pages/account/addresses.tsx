@@ -6,32 +6,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { Address } from '@/types';
+import * as profileService from '@/services/profileService';
 
 export function AccountAddressesPage() {
   const user = useAuthStore((s) => s.user);
-  const updateUser = useAuthStore((s) => s.updateUser);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ label: '', firstName: '', lastName: '', line1: '', line2: '', city: '', county: '', postcode: '', country: 'United Kingdom' });
 
   const addresses = user?.addresses || [];
 
-  const handleAdd = (e: React.FormEvent) => {
+  const replaceUser = useAuthStore((s) => s.replaceUser);
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newAddr: Address = { id: `addr${Date.now()}`, ...form, isDefault: addresses.length === 0 };
-    updateUser({ addresses: [...addresses, newAddr] });
+    replaceUser(await profileService.addAddress({ ...form, isDefault: addresses.length === 0 }));
     toast.success('Address saved');
     setOpen(false);
     setForm({ label: '', firstName: '', lastName: '', line1: '', line2: '', city: '', county: '', postcode: '', country: 'United Kingdom' });
   };
 
-  const handleDelete = (id: string) => {
-    updateUser({ addresses: addresses.filter((a) => a.id !== id) });
+  const handleDelete = async (id: string) => {
+    replaceUser(await profileService.deleteAddress(id));
     toast.info('Address removed');
   };
 
-  const handleSetDefault = (id: string) => {
-    updateUser({ addresses: addresses.map((a) => ({ ...a, isDefault: a.id === id })) });
+  const handleSetDefault = async (id: string) => {
+    replaceUser(await profileService.setDefaultAddress(id));
   };
 
   return (

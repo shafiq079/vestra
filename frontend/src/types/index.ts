@@ -63,6 +63,12 @@ export interface ProductImage {
   alt: string;
   position: number;
   isLifestyle: boolean;
+  colour?: string;
+  isTryOnReady?: boolean;
+  cloudinaryAssetId?: string;
+  cloudinaryPublicId?: string;
+  cloudinaryVersion?: number;
+  cloudinaryFormat?: string;
 }
 
 export interface ProductVariant {
@@ -336,6 +342,25 @@ export interface VirtualTryOnResult {
   createdAt: string;
   isDemo: boolean;
   feedbackGiven?: 'helpful' | 'not_helpful';
+}
+
+export type VirtualTryOnJobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export interface VirtualTryOnJob {
+  id: string;
+  status: VirtualTryOnJobStatus;
+  productId: string;
+  productName: string;
+  productImage: string;
+  colour: string;
+  createdAt: string;
+  updatedAt: string;
+  deadlineAt: string;
+  isDemo: false;
+  resultImage?: string;
+  resultExpiresAt?: string;
+  feedbackGiven?: 'helpful' | 'not_helpful';
+  accessToken?: string;
+  error?: { code: string; message: string };
 }
 
 // ── Admin ─────────────────────────────────────────────────────

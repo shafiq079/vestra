@@ -2,7 +2,7 @@ export function PrivacyPage() {
   return (
     <div className="container-vestra py-12 lg:py-20 max-w-3xl mx-auto">
       <h1 className="font-display text-4xl lg:text-5xl mb-4 text-center">Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground text-center mb-12">Last updated: 1 October 2024</p>
+      <p className="text-sm text-muted-foreground text-center mb-12">Last updated: 8 September 2026</p>
 
       <div className="prose prose-sm max-w-none space-y-8 text-muted-foreground">
         <section>
@@ -14,9 +14,9 @@ export function PrivacyPage() {
           <ul className="list-disc list-inside space-y-1">
             <li>Account information: name, email address, password (hashed)</li>
             <li>Body measurements for size recommendations</li>
-            <li>Photos for virtual try-on (deleted after processing unless you save them)</li>
+            <li>Photos you explicitly consent to submit for one virtual try-on job</li>
             <li>Order history and shipping addresses</li>
-            <li>Browsing data and preferences for recommendations</li>
+            <li>Wishlist and successful purchase signals used for deterministic product recommendations</li>
             <li>Technical data: IP address, browser type, device information</li>
           </ul>
         </section>
@@ -32,8 +32,9 @@ export function PrivacyPage() {
           </ul>
         </section>
         <section>
-          <h2 className="font-display text-xl text-foreground mb-2">4. AI and Measurement Data</h2>
-          <p>Your body measurements and try-on photos are encrypted and stored securely. They are used solely to provide our fit technology features. We do not share this data with third parties. You can delete your measurements and try-on history at any time from your account settings.</p>
+          <h2 className="font-display text-xl text-foreground mb-2">4. Virtual Try-On Photos and AI Processing</h2>
+          <p>After you give explicit consent, your photo is sent to VESTRA, uploaded by our server to a private temporary Cloudinary asset, and made available to Pixelcut through a time-limited link for the requested AI processing. VESTRA asks Cloudinary to delete the temporary source after completion, failure, or cancellation and retries failed cleanup; abandoned jobs are reconciled after their deadline. We do not create a customer photo gallery or store the image binary in MongoDB, browser local storage, or browser session storage.</p>
+          <p className="mt-2">Pixelcut controls its own processing infrastructure and retention. Pixelcut currently states that input images are not retained, output images are removed from its CDN within 24 hours, and result links are short-lived. VESTRA cannot promise deletion from Pixelcut sooner than its published policy. Necessary job, consent, ownership, quota, feedback, and cleanup metadata may be retained without the source photo.</p>
         </section>
         <section>
           <h2 className="font-display text-xl text-foreground mb-2">5. Your Rights</h2>

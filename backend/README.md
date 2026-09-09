@@ -1,70 +1,374 @@
 # VESTRA — Backend
 
-> ⚠️ **This directory is reserved for the future backend implementation.**  
-> No backend code has been implemented during the current frontend phase.
+## Phase 10 Cloudinary + Pixelcut Virtual Try-On
 
-## Overview
+Virtual Try-On is a genuine asynchronous, server-mediated integration:
 
-This directory will house the VESTRA server-side application. The backend will provide a REST API consumed by the React frontend and coordinate with external services.
+`browser upload → Express validation/consent → private temporary Cloudinary asset → expiring
+download URL → Pixelcut → temporary result URL`
 
-## Planned Stack
+The public surface is `GET /api/virtual-try-on/eligible`,
+`GET /api/virtual-try-on/product/:productId`, and multipart
+`POST /api/virtual-try-on`. Lifecycle routes are
+`GET /api/virtual-try-on/jobs/:jobId`,
+`POST /api/virtual-try-on/jobs/:jobId/cancel`, and
+`PUT /api/virtual-try-on/jobs/:jobId/feedback`. Catalogue images are uploaded by an
+authenticated administrator at `POST /api/admin/images` before their Cloudinary metadata is
+saved with a product.
+
+Express—not the browser—holds both providers' credentials. The browser never supplies a garment
+URL or eligibility flag: MongoDB resolves publication, stock, selected colour and an explicitly
+`isTryOnReady` non-lifestyle image. Uploads use Multer memory storage, require one genuine
+JPEG/PNG (signature and dimensions checked), and are capped at 10 MB. Consent is parsed before
+storage or provider submission.
+
+Customer photos use random, non-identifying public IDs in `vestra/vto-temporary`, Cloudinary
+`private` delivery, and an expiring authenticated download URL that remains reachable by
+Pixelcut during asynchronous work. A durable cleanup ledger is written before each upload, so
+uploads remain recoverable even if job persistence or deletion fails. Completion, failure,
+cancellation and deadline paths delete the source; a startup/interval reconciler retries failed
+cleanup and handles abandoned jobs. MongoDB stores deletion metadata but never image bytes,
+base64, or the expiring source URL.
+Pixelcut result URLs are exposed only to the job owner and treated as expiring after one hour
+from provider submission; expired URLs are removed from responses and persistence.
+
+Authenticated jobs are user-scoped. Guest jobs require a session UUID plus an unguessable
+per-job capability. Invalid bearer tokens never downgrade to guest access. Persistent atomic
+rate, daily and concurrent counters protect submissions, while VESTRA-side idempotency prevents
+duplicate generation. An indeterminate submission timeout is recorded as uncertain and is never
+automatically retried because doing so could spend twice.
+
+Tests use injected provider/storage doubles and mocked HTTP/SDK transports; they never make a
+live, chargeable Pixelcut request. A configured provider account and deployed MongoDB/Cloudinary
+environment still require an explicit non-test smoke test.
+
+## Phase 9 product recommendations
+
+`GET /api/recommendations` returns all active recommendation groups and accepts an optional
+`placement` (`homepage`, `product_detail`, or `account`). `GET /api/recommendations/:type`
+returns one group. Both routes permit guests while using the existing strict optional bearer
+authentication convention. The type route accepts optional `productId` context, and both route
+forms accept `limit` from 1–8 (default 4).
+
+All nine frontend types are supported: `recommended_for_you`, `similar_styles`,
+`complete_the_look`, `frequently_bought_together`, `based_on_recently_viewed`,
+`inspired_by_wishlist`, `trending_in_your_size`, `new_arrivals_you_may_like`, and `trending`.
+They are derived at request time from published, in-stock catalogue products, aggregate paid
+non-cancelled order activity, and—when authenticated—the current user's purchases and wishlist.
+Scores use documented deterministic weights in the service, are rounded to a 0–1 range, and
+ties use product IDs. Personalised strategies exclude their signal products and cold-start
+cleanly falls back to truthful popularity/newness explanations.
+
+Wishlist and purchase affinities remain separate: `inspired_by_wishlist` uses wishlist products
+only, while `recommended_for_you` may combine both sources. Multi-group requests build one
+shared catalogue/order/user-signal context rather than repeating those database reads per group.
+
+This phase creates no recommendation collection, uses no ML or external provider, and does not
+infer sizes from measurements. `trending_in_your_size` uses only purchased order-item size
+snapshots. Because browsing history is not persisted, `based_on_recently_viewed` uses optional
+current-product context and otherwise presents an explicitly generic fallback.
+
+## Phase 7 admin API
+
+All `/api/admin` routes are centrally protected by bearer authentication and the `admin`
+role. They manage the same Product and Category collections read by the public catalogue.
+The surface includes UTC calendar-month dashboard metrics; product CRUD, safe duplication,
+publication, transactional bulk operations and product-only seed reset; category rename
+cascades and in-use protection; inventory updates using the checkout stock-status helper;
+safe user/order/review management DTOs; and canonical Phase 5 promotion definitions.
+
+`POST /api/admin/products/import` accepts quoted `text/csv`, validates each row, writes all
+valid rows in one transaction, and returns counts, imported Product DTOs, and row-numbered
+errors. Admin mutations persist privacy-minimal audit entries: identifiers, actions, changed
+field names, statuses and counts only—never credentials, payment data, request bodies, email,
+or addresses. Promotion display dates and numeric usage limits are deterministic display-only demo metadata and
+are not persistent usage accounting. Phase 10 derives VTO totals from completed generations
+and helpful rate only from submitted feedback. Size-recommendation metrics remain zero until
+Phase 13.
+
+Node.js / Express / TypeScript REST API over MongoDB Atlas, consumed by the React
+frontend in [`frontend/`](../frontend).
+
+`backend/` and `frontend/` are **two independent npm applications** in one Git
+repository. This directory installs from its own `package.json` and
+`package-lock.json`, has no npm workspace relationship with the frontend, and deploys
+separately (backend → Render with `backend/` as the service root; frontend → Vercel).
+Never install a backend dependency from the repository root.
+
+The phased build sequence is recorded in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+**Phases 0A–11 are complete and merged. Phase 12 repository preparation is merged; deployment
+and owner production verification remain pending. Phase 13 is intentionally deferred until the
+client supplies the trained ML model.**
+
+### Phase 4 authentication and account API
+
+Authentication routes are `POST /api/auth/register`, `POST /api/auth/login`,
+`GET /api/auth/me`, compatibility `GET /api/auth/me/:userId`, `POST /api/auth/refresh`,
+`POST /api/auth/logout`, and `POST /api/auth/forgot-password`. Protected account routes are
+`GET|PATCH /api/profile`, address list/create/update/delete/default routes beneath
+`/api/profile/addresses`, and `GET|PATCH /api/profile/measurement-profile`.
+
+Access tokens are short-lived HS256 JWTs containing only subject and role. Opaque random refresh
+tokens are rotated on use; MongoDB stores only their SHA-256 hashes. Passwords are hashed with
+bcrypt. Configure `JWT_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `BCRYPT_ROUNDS`, and
+`REFRESH_TOKEN_TTL_DAYS` as documented in `.env.example`.
+
+Run `npm run seed:demo-users` to idempotently seed the demonstration customer and administrator;
+the command additionally requires `DEMO_CUSTOMER_PASSWORD` and `DEMO_ADMIN_PASSWORD`. The
+forgot-password route intentionally gives a generic, non-enumerating acknowledgement only:
+Phase 4 has no email delivery provider or password-reset completion flow. The production frontend
+now uses these real routes; demo buttons prefill only the public email and bundle no password.
+
+### Phase 5 cart and wishlist API
+
+Cart routes are `GET /api/cart`, `POST /api/cart/items`,
+`PATCH|DELETE /api/cart/items/:itemId`, `DELETE /api/cart`,
+`POST|DELETE /api/cart/promo`, and `POST /api/cart/merge`. Authenticated carts derive their
+owner exclusively from the verified bearer token. Guests supply an opaque UUID-style identifier
+in `X-Guest-Cart-Id`; normal cart operations prefer an authenticated identity when both are
+present. The authenticated merge endpoint combines that guest cart into the user's cart and
+deletes the guest cart only after successful validation.
+
+Prices, variant availability, stock, subtotal, discount, and estimated total are authoritative
+server calculations. Client totals and prices are rejected by strict request schemas. Phase 5
+does not calculate delivery charges.
+
+Wishlist routes are authenticated `GET /api/wishlist` and `POST /api/wishlist/toggle`. The GET
+response is deliberately a populated `Product[]`, rather than persistence records or a wrapper,
+because that is the current frontend service contract. Frontend wiring remains deferred to
+Phase 8, so no frontend files are changed in Phase 5.
+
+### Phase 6 checkout and orders API (under review)
+
+`POST /api/orders` converts the persisted server cart to an order. A bearer token selects the
+authenticated cart; otherwise both a UUID-style `X-Guest-Cart-Id` and valid `guestEmail` are
+required. Invalid supplied tokens return 401 rather than falling back to guest checkout.
+Authenticated `GET /api/orders` and `GET /api/orders/:orderId` restrict every query to the
+verified user's orders; public guest history/detail lookup is not provided.
+
+Checkout reloads published products and variants and recomputes price (`salePrice ?? price`),
+promo, subtotal, discount, delivery, and total. Canonical options are Standard (`del1`, free),
+Express (`del2`, £7.95), and Next Day (`del3`, £12.95); delivery is free from a £75 server
+subtotal. Estimates use the option's maximum working-day duration. Client snapshots and totals
+are compatibility input only and never authoritative.
+
+Stock, affected-product `stockStatus`, order insertion, and cart deletion share one MongoDB
+transaction, so failure rolls everything back. Changed products derive status from total remaining
+variant units: zero is `out_of_stock`, 1-5 is `low_stock`, and 6+ is `in_stock`.
+
+Payment is **simulation only**: success records `confirmed` / `paid`, but no payment provider is
+called and no card number, CVC, expiry, or payment secret is accepted or stored.
+
+## Public catalogue API
+
+Phase 3 exposes read-only product, category, and collection routes beneath `/api`. For
+compatibility with the existing frontend service, `GET /products` has two response modes:
+supplying either `page` or `pageSize` returns `PaginatedResult<Product>`, while omitting both
+returns the complete matching `Product[]`. Phase 8 may standardise this deliberate compatibility
+behaviour when the real API is wired into the frontend.
+
+Product filters use `salePrice ?? price` as the effective storefront price. Availability is
+derived from actual variant stock rather than the denormalised stock label. Because Phase 2 has
+no structured product `fit` field, the `fit` compatibility filter performs escaped,
+case-insensitive matching against `fitDescription`; it does not add or infer a new persistence
+field.
+
+## Stack
 
 | Layer | Technology |
 |---|---|
 | Runtime | Node.js 18+ |
-| Framework | Express.js |
-| Database | MongoDB (via Mongoose ODM) |
-| Authentication | JWT (JSON Web Tokens) |
-| File Uploads | Multer |
-| Validation | Zod / express-validator |
+| Framework | Express 5 |
+| Language | TypeScript (strict) |
+| Database | MongoDB Atlas |
+| ODM | Mongoose 8 |
+| Env validation | Zod |
+| Tests | Vitest 3 + Supertest + `mongodb-memory-server` 10 |
 
-## Planned Services
+### Node 18 compatibility
 
-### MongoDB & Mongoose
-Product catalog, user profiles, order history, and size recommendations will be persisted in MongoDB. Mongoose will provide schema validation and query helpers.
+`engines.node` is `>=18`, and every dependency is held to it. Mongoose, Vitest and
+`mongodb-memory-server` are deliberately kept on their **8.x / 3.x / 10.x** lines because
+the next major of each requires Node 20.19+ and would silently break the contract.
 
-### Python Size-Recommendation Service
-A separate Python microservice will implement the body-measurement-to-size mapping algorithm. The Express backend will act as a proxy, forwarding relevant measurement data and returning size recommendations to the frontend.
+The `overrides` entry pinning `vite` to `^6` exists for the same reason: Vitest 3 accepts
+`vite@^5 || ^6 || ^7`, but Vite 7 requires Node 20.19+, so an unconstrained install
+resolves a transitive dependency that Node 18 cannot run. Vite is not used by the backend
+itself — only by Vitest.
 
-### Virtual Try-On Provider
-A third-party Virtual Try-On (VTO) provider will be integrated through this backend. The backend will:
-1. Accept garment and user image requests from the frontend.
-2. Forward them to the VTO provider's API.
-3. Return the composited try-on image to the frontend.
+`@types/node` is held to **18.x** so the type definitions describe the *minimum* supported
+runtime rather than the newest one. On a later major, `tsc` would accept APIs that do not
+exist in Node 18 (`process.loadEnvFile`, for example) and the build would pass while the
+deployed runtime threw. Keep this line in step with `engines.node`, not with the Node
+version that happens to be installed locally.
 
-Routing through the backend keeps provider API keys server-side and allows caching/rate-limiting.
+Before raising any of these, check the target's real requirement rather than assuming:
 
-## Directory Structure
+```bash
+npm view <package>@<version> engines
+```
+
+## Getting started
+
+```bash
+cd backend
+npm install
+cp .env.example .env   # then fill in real values — .env is git-ignored
+npm run dev
+```
+
+The API listens on `http://localhost:5000/api`, which is the base URL the frontend
+already defaults to (`frontend/src/services/apiClient.ts`).
+
+## Scripts
+
+Run from `backend/`:
+
+| Script | Purpose |
+|---|---|
+| `npm run dev` | Development server with watch reload (`tsx watch src/server.ts`) |
+| `npm run build` | Compile TypeScript to `dist/` (`tsc`) |
+| `npm start` | Run the compiled build (`node dist/server.js`) — the production entry point |
+| `npm test` | Run the test suite once (`vitest run`) |
+| `npm run test:watch` | Run the test suite in watch mode |
+| `npm run typecheck` | Type-check `src/` **and** `tests/` without emitting |
+| `npm run seed` | Replace the catalogue collections with the backend-owned 24-product demonstration seed (requires `MONGODB_URI`) |
+
+Equivalent convenience wrappers exist at the repository root and delegate with
+`npm --prefix backend`: `dev:backend`, `build:backend`, `start:backend`, `test:backend`.
+
+## Environment variables
+
+Every variable is validated at startup by [`src/config/env.ts`](src/config/env.ts). A
+missing or malformed value aborts the process with a message naming the variable —
+never its value. `MONGODB_URI` is treated as sensitive and is never echoed, logged, or
+included in an error message.
+
+Copy [`.env.example`](.env.example) to `.env` and fill it in. **Never commit `.env`.**
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `NODE_ENV` | no | `development` | Runtime mode: `development` \| `test` \| `production` |
+| `PORT` | no | `5000` | Port the HTTP server binds to. 5000 matches the frontend default |
+| `MONGODB_URI` | **yes** | — | MongoDB connection string. Must start `mongodb://` or `mongodb+srv://` |
+| `CORS_ORIGIN` | no | `http://localhost:5173` | Comma-separated list of permitted browser origins. A wildcard `*` is rejected when `NODE_ENV=production` |
+| `PIXELCUT_API_KEY` | **yes** | — | Newly issued server-only Pixelcut credential |
+| `CLOUDINARY_CLOUD_NAME` | **yes** | — | Cloudinary account name |
+| `CLOUDINARY_API_KEY` | **yes** | — | Server-only Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | **yes** | — | Server-only Cloudinary signing secret |
+| `VTO_DAILY_QUOTA` | no | `5` | Started jobs allowed per owner per UTC day |
+| `VTO_CONCURRENT_LIMIT` | no | `1` | Active jobs allowed per owner |
+| `VTO_RATE_LIMIT_WINDOW_SECONDS` | no | `60` | Persistent submission-rate window |
+| `VTO_RATE_LIMIT_MAX_REQUESTS` | no | `5` | Submission attempts per rate window |
+| `VTO_PROVIDER_TIMEOUT_MS` | no | `10000` | Timeout for each Pixelcut HTTP request |
+| `VTO_JOB_DEADLINE_SECONDS` | no | `600` | Overall asynchronous processing deadline |
+| `VTO_SOURCE_URL_TTL_SECONDS` | no | `900` | Private source-photo URL lifetime |
+| `VTO_RECONCILE_INTERVAL_SECONDS` | no | `60` | Abandoned-job and deletion-retry interval |
+
+`VTO_SOURCE_URL_TTL_SECONDS` must be at least 60 seconds longer than the overall job deadline,
+so Pixelcut cannot lose access to the private source while a job is still allowed to run.
+
+## Structure
 
 ```
 backend/
 ├── src/
-│   ├── config/        # Environment config, DB connection, constants
-│   ├── controllers/   # Route handler logic
-│   ├── middleware/    # Auth, validation, error-handling middleware
-│   ├── models/        # Mongoose schemas & models
-│   ├── routes/        # Express router definitions
-│   ├── services/      # Business logic & external API clients
-│   ├── utils/         # Shared utility functions
-│   └── validators/    # Request validation schemas
-├── tests/             # Unit & integration tests
-├── uploads/           # Temporary storage for uploaded files
-└── README.md
+│   ├── app.ts              # Express app assembly — no port binding, importable by tests
+│   ├── server.ts           # Entry point: env → database → listen → graceful shutdown
+│   ├── lifecycle.ts        # Shutdown routine + SIGINT/SIGTERM wiring (unit tested)
+│   ├── config/
+│   │   ├── env.ts          # Zod-validated environment loading, fail-fast, secret-safe
+│   │   └── database.ts     # Mongoose connection, event logging, disconnect, state
+│   ├── middleware/
+│   │   ├── errorHandler.ts # Centralised { code, message, details? } error responses
+│   │   └── notFound.ts     # Terminal 404 handler
+│   ├── routes/
+│   │   ├── index.ts        # /api router root
+│   │   ├── health.ts       # GET /api/health
+│   │   └── diagnostics.ts  # Test-only error-triggering routes (gated off outside tests)
+│   └── utils/
+│       ├── httpError.ts    # HttpError carrying status + code + optional details
+│       └── logger.ts       # Logger with a single secret-redaction choke point
+├── tests/                  # Vitest suite — see tests/README.md
+├── .env.example
+├── tsconfig.json           # Strict; compiles src/ to dist/
+├── tsconfig.test.json      # Type-checks src/ + tests/ (no emit)
+└── vitest.config.mts
 ```
 
-## Future Setup
+Directories reserved for later phases (`controllers/`, `models/`, `services/`,
+`validators/`, `uploads/`) are present but empty.
 
-Once backend development begins:
+## API
+
+The persistence/DTO decisions are documented in [SCHEMA_MAPPING.md](SCHEMA_MAPPING.md).
+The catalogue seed replaces only products, categories, and collections and can be
+run repeatedly with deterministic counts. Do not run it against a database whose
+catalogue should be retained.
+
+### `GET /api/health`
+
+Liveness/readiness probe. Returns **200** while the database is connected and **503**
+otherwise, so a platform health check can distinguish "process alive" from "actually
+serving". It deliberately exposes no connection string, host, database name, or
+environment variable value.
+
+```json
+{
+  "status": "ok",
+  "service": "vestra-backend",
+  "environment": "development",
+  "uptimeSeconds": 12.482,
+  "timestamp": "2026-08-25T09:41:02.118Z",
+  "database": { "status": "connected", "readyState": 1 }
+}
+```
+
+## Error contract
+
+Every non-2xx response body matches `ApiError` in `frontend/src/types/index.ts`, which
+is what the existing Axios interceptor in `frontend/src/services/apiClient.ts` reads:
+
+```json
+{ "code": "ROUTE_NOT_FOUND", "message": "...", "details": { "field": ["..."] } }
+```
+
+`details` is optional. A stack trace is **never** placed in a response body in any
+environment, and an unrecognised internal error yields a generic
+`INTERNAL_SERVER_ERROR` message while the real cause is logged server-side only.
+
+Codes emitted in Phase 1: `ROUTE_NOT_FOUND` (404), `INVALID_JSON` (400),
+`PAYLOAD_TOO_LARGE` (413), `INTERNAL_SERVER_ERROR` (500).
+
+## Security posture (Phase 1)
+
+- `helmet` security headers; `x-powered-by` disabled.
+- CORS driven entirely by `CORS_ORIGIN`; a production wildcard is rejected at startup.
+- JSON and urlencoded bodies capped at 1 MB.
+- All logging passes through a redaction step that strips URI userinfo
+  (`mongodb+srv://user:pass@…`) and bearer tokens.
+- Database errors are reduced to name and message, with the stack dropped, because
+  driver stack frames can embed connection options.
+
+Comprehensive hardening (rate limiting, injection sanitisation, the full authorisation
+matrix) is Phase 11.
+
+## Testing
+
+See [tests/README.md](tests/README.md) for the tooling, the directory convention later
+phases should follow, and how database isolation is guaranteed and asserted.
 
 ```bash
-cd backend
-npm init -y
-npm install express mongoose dotenv cors helmet morgan multer zod
-npm install -D typescript ts-node nodemon @types/express @types/node jest
+npm test
 ```
 
-Start the development server (once implemented):
+## External services
 
-```bash
-npm run dev   # runs on http://localhost:5000
-```
+Both are strictly server-mediated so the browser never holds a provider credential:
+
+- **Virtual Try-On** (Phase 10) — `React → Express → Cloudinary/Pixelcut`, behind provider and
+  storage interfaces. Implemented; production credentials and an approved live smoke test remain
+  deployment responsibilities.
+- **ML Size Recommendation** (Phase 13) — `React → Express → Python ML service`. Last in
+  the sequence only because the trained model has not been supplied yet; the measurement
+  form schema stays model-determined so no input set is hard-coded.

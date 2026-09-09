@@ -1,25 +1,6 @@
-import { USE_MOCK_API, apiClient } from './apiClient';
-import { mockRecommendationGroups, getRecommendationsByType, getRecommendationsByPlacement } from '../mocks/recommendations';
-import { mockRequest } from '../mocks/mockDatabase';
-import type { RecommendationGroup } from '../types';
-
-export async function getRecommendations(type: string): Promise<RecommendationGroup | null> {
-  if (USE_MOCK_API) {
-    await new Promise((r) => setTimeout(r, 350));
-    return getRecommendationsByType(type) || null;
-  }
-  const response = await apiClient.get(`/recommendations/${type}`);
-  return response.data;
-}
-
-export async function getRecommendationsByPage(placement: string): Promise<RecommendationGroup[]> {
-  if (USE_MOCK_API) return mockRequest(getRecommendationsByPlacement(placement));
-  const response = await apiClient.get(`/recommendations?placement=${placement}`);
-  return response.data;
-}
-
-export async function getAllRecommendationGroups(): Promise<RecommendationGroup[]> {
-  if (USE_MOCK_API) return mockRequest(mockRecommendationGroups);
-  const response = await apiClient.get('/recommendations');
-  return response.data;
-}
+import { apiClient } from './apiClient';
+import type { ApiError, RecommendationGroup, RecommendationType } from '../types';
+export interface RecommendationContext { productId?: string; limit?: number }
+export async function getRecommendations(type: RecommendationType, context?: RecommendationContext): Promise<RecommendationGroup | null> { try { return (await apiClient.get<RecommendationGroup>(`/recommendations/${type}`, { params: context })).data; } catch (error) { const apiError = error as ApiError; if (['NOT_FOUND', 'HTTP_404'].includes(apiError.code)) return null; throw error; } }
+export async function getRecommendationsByPage(placement: string): Promise<RecommendationGroup[]> { return (await apiClient.get<RecommendationGroup[]>('/recommendations', { params: { placement } })).data; }
+export async function getAllRecommendationGroups(): Promise<RecommendationGroup[]> { return (await apiClient.get<RecommendationGroup[]>('/recommendations')).data; }
