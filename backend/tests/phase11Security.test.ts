@@ -16,13 +16,19 @@ const apiError = (response: request.Response, status = 400) => {
 describe('Phase 11 cross-cutting security hardening', () => {
   beforeEach(async () => User.deleteMany({}));
 
-  it('engages a standards-header global rate limit with the API error contract', async () => {
+  it('exempts repeated health probes while rate-limiting ordinary API routes', async () => {
     const limited = express();
-    limited.use(createGlobalRateLimit(2));
-    limited.get('/', (_req, res) => res.json({ ok: true }));
-    expect((await request(limited).get('/')).status).toBe(200);
-    expect((await request(limited).get('/')).status).toBe(200);
-    const blocked = await request(limited).get('/');
+    limited.use('/api', createGlobalRateLimit(2));
+    limited.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+    limited.get('/api/products', (_req, res) => res.json({ products: [] }));
+
+    for (let probe = 0; probe < 5; probe += 1) {
+      expect((await request(limited).get('/api/health')).status).toBe(200);
+    }
+
+    expect((await request(limited).get('/api/products')).status).toBe(200);
+    expect((await request(limited).get('/api/products')).status).toBe(200);
+    const blocked = await request(limited).get('/api/products');
     apiError(blocked, 429);
     expect(blocked.headers['ratelimit']).toBeDefined();
   });

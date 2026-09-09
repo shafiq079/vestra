@@ -12,6 +12,10 @@ export function createGlobalRateLimit(limit = 300): RequestHandler {
   return rateLimit({
     windowMs: 15 * 60 * 1000,
     limit,
+    // Render probes this route every few seconds. Because the limiter is
+    // mounted at /api, req.path is /health here; probes must neither consume a
+    // customer's API allowance nor make a healthy deployment return 429.
+    skip: (req) => req.path === '/health',
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     message: RATE_LIMIT_BODY,
