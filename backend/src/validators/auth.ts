@@ -5,7 +5,7 @@ const email = z.email().trim().toLowerCase();
 const password = z.string().min(8).max(128).refine((value) => value.trim().length > 0, 'Password cannot be blank.');
 const registerSchema = z.strictObject({ firstName: trimmedRequired, lastName: trimmedRequired, email, password, marketingOptIn: z.boolean() });
 const loginSchema = z.strictObject({ email, password: z.string().min(1).max(128) });
-const tokenSchema = z.strictObject({ refreshToken: z.string().min(1) });
+const tokenSchema = z.strictObject({ refreshToken: z.string().min(1).max(2048) });
 const forgotSchema = z.strictObject({ email });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
