@@ -1,5 +1,7 @@
 # Backend test suite
 
+Phase 11 evidence is maintained in [../PHASE_11_AUDIT.md](../PHASE_11_AUDIT.md). Run `npm run test:coverage` for its text report; generated coverage artefacts are not committed.
+
 Test tooling was established in **Phase 1** and every phase from Phase 1 onward adds
 tests for the functionality it introduces. Phase 11 audits and deepens this suite — it
 is not where testing begins.

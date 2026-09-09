@@ -1,6 +1,6 @@
 # VESTRA — Backend Implementation Plan
 
-**Status:** Phases 0A–9 complete and merged · **Phase 10 in progress / under review**
+**Status:** Phases 0A–10 complete and merged · **Phase 11 in progress / under review**
 **Integration branch:** `backend-development` — every phase is developed on its own scoped branch and merged in by pull request
 **Scope owner:** project owner (dissertation author)
 
@@ -88,8 +88,8 @@ Consequence: by the time Phase 11 begins, every route group already has working 
 | 7 | Admin APIs | 3, 4, 6 | **Complete and merged** |
 | 8 | Gradual frontend/backend integration | 3–7 | **Complete and merged** |
 | 9 | Product recommendations | 3, 6 | **Complete and merged** |
-| 10 | Cloudinary + Pixelcut Virtual Try-On and production mock retirement | 1, 3, 4, 8, 9 | **In progress / under review** |
-| 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) | Not started |
+| 10 | Cloudinary + Pixelcut Virtual Try-On and production mock retirement | 1, 3, 4, 8, 9 | **Complete and merged** |
+| 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) | **In progress / under review** |
 | 12 | Backend deployment and production configuration | 11 | Not started |
 | 13 | ML Size Recommendation integration (**LAST**) | 12 + client-supplied model | Blocked — awaiting client model |
 | 14 | Final end-to-end/dissertation validation | 13 | Not started |
@@ -590,6 +590,10 @@ Phases 1–10 — all of which already carry their own tests. This phase audits 
 - Rate limits demonstrably engage.
 - The audit result is recorded with remaining items justified.
 - The suite is order-insensitive and touches no development or production data.
+
+**Implementation status — in progress / under review**
+
+Implemented on the Phase 11 feature branch. The route inventory, authorisation result, security and validation changes, dependency-audit disposition, coverage evidence and limitations are recorded in [PHASE_11_AUDIT.md](PHASE_11_AUDIT.md). This phase remains under review until its pull request is merged.
 
 ---
 

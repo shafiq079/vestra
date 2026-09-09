@@ -69,6 +69,11 @@ function boolean(query: QueryObject, key: string): boolean | undefined {
 }
 
 export function parseProductQuery(query: QueryObject): ProductQuery {
+  const allowed = new Set(['category', 'category[]', 'size', 'size[]', 'colour', 'colour[]', 'brand', 'brand[]',
+    'fit', 'fit[]', 'collection', 'genderCollection', 'minPrice', 'maxPrice', 'rating', 'availability', 'onSale',
+    'tryOnEligible', 'sizeRecEligible', 'search', 'sortBy', 'page', 'pageSize']);
+  const unexpected = Object.keys(query).find((key) => !allowed.has(key));
+  if (unexpected) fail(unexpected, 'Unexpected query parameter.');
   const pagePresent = query.page !== undefined;
   const pageSizePresent = query.pageSize !== undefined;
   const page = number(query, 'page', z.number().int().min(1)) ?? 1;
@@ -88,7 +93,7 @@ export function parseProductQuery(query: QueryObject): ProductQuery {
   const sort = z.enum(PRODUCT_SORTS).safeParse(sortRaw);
   if (!sort.success) fail('sortBy', `Must be one of: ${PRODUCT_SORTS.join(', ')}.`);
   const search = single(query, 'search');
-  if (search !== undefined && search.trim() === '') fail('search', 'Must contain meaningful text.');
+  if (search !== undefined && (search.trim() === '' || search.length > 200)) fail('search', 'Must contain 1 to 200 characters.');
 
   return {
     categories: array(query, 'category'), sizes: array(query, 'size'), colours: array(query, 'colour'),

@@ -14,6 +14,7 @@ import morgan from 'morgan';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import { createGlobalRateLimit, createSensitiveRateLimit, rejectUnsafeInput } from './middleware/security';
 import { createApiRouter } from './routes';
 import { createDefaultVirtualTryOnDependencies, type VirtualTryOnDependencies } from './services/virtualTryOnService';
 
@@ -66,6 +67,19 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   app.use(express.json({ limit: BODY_SIZE_LIMIT }));
   app.use(express.urlencoded({ extended: true, limit: BODY_SIZE_LIMIT }));
+
+  // Layered abuse protection: a broad API ceiling plus tighter limits on
+  // credential-processing endpoints. Successful logins do not consume the
+  // sensitive allowance, avoiding needless lockout of legitimate customers.
+  // The test process exercises hundreds of requests through one in-process IP;
+  // limiter behaviour itself is verified with deliberately small instances.
+  app.use('/api', createGlobalRateLimit(env.isTest ? 10_000 : 300));
+  const credentialLimit = createSensitiveRateLimit(env.isTest ? 10_000 : 10);
+  app.use('/api/auth/login', credentialLimit);
+  app.use('/api/auth/register', credentialLimit);
+  app.use('/api/auth/forgot-password', credentialLimit);
+
+  app.use(rejectUnsafeInput);
 
   app.use('/api', createApiRouter({ enableDiagnostics, virtualTryOn }));
 
