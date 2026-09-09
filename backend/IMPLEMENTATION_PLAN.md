@@ -89,8 +89,8 @@ Consequence: by the time Phase 11 begins, every route group already has working 
 | 8 | Gradual frontend/backend integration | 3–7 | **Complete and merged** |
 | 9 | Product recommendations | 3, 6 | **Complete and merged** |
 | 10 | Cloudinary + Pixelcut Virtual Try-On and production mock retirement | 1, 3, 4, 8, 9 | **Complete and merged** |
-| 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) | **In progress / under review** |
-| 12 | Backend deployment and production configuration | 11 | Not started |
+| 11 | Comprehensive regression, security, authorisation, validation and hardening | 1–10 (all already carry their own tests) | **Complete and merged** |
+| 12 | Backend deployment and production configuration | 11 | **In progress / deployment pending owner production verification** |
 | 13 | ML Size Recommendation integration (**LAST**) | 12 + client-supplied model | Blocked — awaiting client model |
 | 14 | Final end-to-end/dissertation validation | 13 | Not started |
 

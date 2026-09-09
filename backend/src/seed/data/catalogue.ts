@@ -1240,4 +1240,3 @@ export const catalogueProducts = [
     createdAt: '2024-04-01T10:00:00Z',
   },
 ];
-
