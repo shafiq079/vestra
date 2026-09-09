@@ -2,6 +2,7 @@ services:
   - type: web
     name: vestra-backend
     runtime: node
+    plan: free
     branch: main
     rootDir: backend
     buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
