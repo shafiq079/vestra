@@ -1,6 +1,6 @@
 # VESTRA — Backend Implementation Plan
 
-**Status:** Phases 0A–10 complete and merged · **Phase 11 in progress / under review**
+**Status:** Phases 0A–11 complete and merged · **Phase 12 in progress / deployment pending owner production verification**
 **Integration branch:** `backend-development` — every phase is developed on its own scoped branch and merged in by pull request
 **Scope owner:** project owner (dissertation author)
 
@@ -210,7 +210,7 @@ Stand up a minimal, type-safe, runnable Express server that connects to MongoDB 
 - No secret appears in source, logs, test fixtures, or documentation.
 - The frontend still builds and still runs unchanged in mock mode.
 
-**Implementation status — complete and merged**
+**Implementation status — Complete and merged**
 
 Delivered and merged into `backend-development`. What was actually verified, and what was not:
 
@@ -591,13 +591,21 @@ Phases 1–10 — all of which already carry their own tests. This phase audits 
 - The audit result is recorded with remaining items justified.
 - The suite is order-insensitive and touches no development or production data.
 
-**Implementation status — in progress / under review**
+**Implementation status — complete and merged**
 
-Implemented on the Phase 11 feature branch. The route inventory, authorisation result, security and validation changes, dependency-audit disposition, coverage evidence and limitations are recorded in [PHASE_11_AUDIT.md](PHASE_11_AUDIT.md). This phase remains under review until its pull request is merged.
+The route inventory, authorisation result, security and validation changes, dependency-audit disposition, coverage evidence and limitations are recorded in [PHASE_11_AUDIT.md](PHASE_11_AUDIT.md).
 
 ---
 
 ## Phase 12 — Backend deployment and production configuration
+
+**Implementation status — In progress / deployment pending owner production verification**
+
+Repository-side Render configuration and deployment/rollback guidance are prepared in
+[`render.yaml`](../render.yaml) and [DEPLOYMENT.md](DEPLOYMENT.md). Hosted completion criteria remain
+pending until the owner promotes the reviewed integration branch to `main`, configures Render,
+Atlas and Vercel, and records successful production smoke checks. Repository preparation alone does
+not mark this phase complete.
 
 **Objective**
 Deploy the hardened backend so the frontend can reach it from a hosted environment, with production configuration separated from development.
