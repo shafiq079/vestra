@@ -148,6 +148,35 @@
   [role="button"][aria-disabled="true"] {
     cursor: not-allowed;
   }
+
+  /* Keep the Virtual Try-On consent checkbox visible on muted backgrounds. */
+  #vto-consent[data-slot="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.125rem;
+    border-width: 2px;
+    border-color: color-mix(in srgb, var(--foreground) 60%, transparent);
+    background: var(--background);
+  }
+
+  #vto-consent[data-slot="checkbox"][data-state="checked"] {
+    border-color: var(--foreground);
+    background: var(--foreground);
+    color: var(--background);
+  }
+
+  /* The shared Label component is flex-based; consent text needs normal inline flow. */
+  label[for="vto-consent"] {
+    display: block;
+    min-width: 0;
+    flex: 1 1 0%;
+    line-height: 1.625;
+  }
+
+  label[for="vto-consent"] a[href="/privacy"] {
+    display: inline;
+    white-space: nowrap;
+  }
 }
 
 @layer utilities {
