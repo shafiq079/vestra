@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Heart, ShoppingBag, Ruler, Scan, Star, ChevronLeft, ChevronRight, Truck, RefreshCw, Shield } from 'lucide-react';
 import { getProduct, getRelated } from '@/services/productService';
@@ -11,10 +11,85 @@ import { ProductCard } from '@/components/product/product-card';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatPrice, getDiscountPercent } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+function ProductPageSkeleton() {
+  return (
+    <div className="container-vestra py-4 lg:py-8" aria-busy="true" aria-label="Loading product">
+      <Skeleton className="h-4 w-48" />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mt-6">
+        <div>
+          <Skeleton className="w-full aspect-product rounded-xl" />
+          <div className="flex gap-2 mt-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="w-16 h-20 rounded-md" />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-10 w-3/4 mt-3" />
+          <Skeleton className="h-4 w-44 mt-4" />
+          <Skeleton className="h-8 w-28 mt-5" />
+          <Skeleton className="h-5 w-full max-w-md mt-5" />
+          <Skeleton className="h-5 w-4/5 max-w-sm mt-2" />
+
+          <div className="mt-7">
+            <Skeleton className="h-4 w-24 mb-3" />
+            <div className="flex gap-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="w-9 h-9 rounded-full" />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-7">
+            <Skeleton className="h-4 w-20 mb-3" />
+            <div className="flex gap-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="w-12 h-11 rounded-lg" />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-7">
+            <Skeleton className="h-4 w-20 mb-3" />
+            <Skeleton className="h-11 w-32 rounded-lg" />
+          </div>
+
+          <div className="flex gap-3 mt-8">
+            <Skeleton className="h-11 flex-1 rounded-lg" />
+            <Skeleton className="h-11 w-12 rounded-lg" />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-border">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="flex flex-col items-center gap-2">
+                <Skeleton className="h-5 w-5" />
+                <Skeleton className="h-3 w-24 max-w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-12 lg:mt-16">
+        <Skeleton className="h-10 w-full" />
+        <div className="space-y-3 mt-6 max-w-3xl">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-11/12" />
+          <Skeleton className="h-4 w-4/5" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ProductPage() {
   const { slug } = useParams();
@@ -27,6 +102,14 @@ export function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
 
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    setSelectedColour('');
+    setSelectedSize('');
+    setQuantity(1);
+    setActiveImage(0);
+  }, [slug]);
+
   const addItem = useCartStore((s) => s.addItem);
   const toggleWishlist = useWishlistStore((s) => s.toggleItem);
   const hasWishlist = useWishlistStore((s) => product ? s.hasItem(product.id) : false);
@@ -34,7 +117,7 @@ export function ProductPage() {
 
   const { data: reviews = [] } = useQuery({ queryKey: ['product-reviews', product?.id], queryFn: () => getProductReviews(product!.id), enabled: !!product });
 
-  if (isLoading) return <div className="container-vestra py-20 text-center text-muted-foreground">Loading product...</div>;
+  if (isLoading) return <ProductPageSkeleton />;
   if (!product) return <div className="container-vestra py-20 text-center"><p>Product not found.</p><Button asChild className="mt-4"><Link to="/shop">Back to shop</Link></Button></div>;
 
   const price = product.salePrice ?? product.price;
