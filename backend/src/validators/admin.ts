@@ -9,6 +9,32 @@ const image = z.object({ id: z.string().optional(), url: z.string().trim().min(1
   if (value.isTryOnReady && !value.url.startsWith('https://')) ctx.addIssue({ code: 'custom', path: ['url'], message: 'A VTO-ready image URL must use HTTPS' });
 });
 const variant = z.object({ id: z.string().optional(), sku: z.string().trim().min(1).max(100), colour: z.string().trim().min(1), colourHex: z.string().trim().min(1), size: z.string().trim().min(1), stock: z.number().int().nonnegative(), image: z.string().trim().optional() }).strict();
+const ML_STANDARD_SIZES = new Set(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
+
+function validateMlSizes(value: { sizeRecommendationEligible?: boolean; variants?: Array<{ size: string }>; availableSizes?: string[] }, ctx: z.RefinementCtx) {
+  if (!value.sizeRecommendationEligible) return;
+
+  value.variants?.forEach((item, index) => {
+    if (!ML_STANDARD_SIZES.has(item.size.trim().toUpperCase())) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['variants', index, 'size'],
+        message: 'ML size recommendation products must use standard sizes XXS to XXXL',
+      });
+    }
+  });
+
+  value.availableSizes?.forEach((size, index) => {
+    if (!ML_STANDARD_SIZES.has(size.trim().toUpperCase())) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['availableSizes', index],
+        message: 'ML size recommendation products must use standard sizes XXS to XXXL',
+      });
+    }
+  });
+}
+
 export const productFields = {
   slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), name: z.string().trim().min(1), brand: z.string().trim().min(1),
   shortDescription: z.string().max(2000).optional(), fullDescription: z.string().max(10000).optional(), category: z.string().trim().toLowerCase().min(1),
@@ -38,8 +64,11 @@ const productCreate = z.object({
   recommendationTags: productFields.recommendationTags.default([]),
   relatedProductIds: productFields.relatedProductIds.default([]),
   isPublished: productFields.isPublished.default(false),
-}).strict().superRefine((v, ctx) => { if (v.salePrice !== undefined && v.salePrice >= v.price) ctx.addIssue({ code: 'custom', path: ['salePrice'], message: 'Sale price must be lower than price' }); });
-const productUpdate = z.object(productFields).partial().strict();
+}).strict().superRefine((v, ctx) => {
+  if (v.salePrice !== undefined && v.salePrice >= v.price) ctx.addIssue({ code: 'custom', path: ['salePrice'], message: 'Sale price must be lower than price' });
+  validateMlSizes(v, ctx);
+});
+const productUpdate = z.object(productFields).partial().strict().superRefine(validateMlSizes);
 export type ProductInput = z.infer<typeof productCreate>;
 export type ProductUpdate = z.infer<typeof productUpdate>;
 export const parseProductCreate = (body: unknown) => parseBody(productCreate, body, 'Invalid product.');
