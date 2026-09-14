@@ -11,6 +11,7 @@ export function createVirtualTryOnRouter(deps: VirtualTryOnDependencies): Router
   router.get('/product/:productId', controller.product);
   router.post('/', singleImageUpload, controller.submit);
   router.get('/jobs/:jobId', controller.status);
+  router.get('/jobs/:jobId/source-image', controller.sourceImage);
   router.post('/jobs/:jobId/cancel', controller.cancel);
   router.put('/jobs/:jobId/feedback', controller.feedback);
   return router;
