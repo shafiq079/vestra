@@ -25,3 +25,24 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: ML_SERVICE_URL
+        sync: false
+      - key: ML_SERVICE_KEY
+        sync: false
+      - key: ML_SERVICE_TIMEOUT_MS
+        value: 5000
+
+  - type: web
+    name: vestra-size-ml
+    runtime: python
+    plan: free
+    branch: main
+    rootDir: ml-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ML_SERVICE_KEY
+        sync: false
+      - key: ML_ENABLE_DOCS
+        value: false
