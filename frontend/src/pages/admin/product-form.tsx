@@ -3,7 +3,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, GripVertical, Image as ImageIcon, CircleAlert as AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { createAdminProduct, updateAdminProduct, uploadAdminImage } from '@/services/adminService';
+import { getCategories } from '@/services/categoryService';
 import { slugify } from '@/utils/formatters';
 import type { Product, ProductBadge, GenderCollection } from '@/types';
 
@@ -76,10 +77,8 @@ const productSchema = z.object({
 
 type FormValues = z.infer<typeof productSchema>;
 
-const categoryOptions = ['dresses', 'tops', 'knitwear', 'trousers', 'outerwear', 'jumpsuits', 'activewear', 'skirts'];
 const NO_COLLECTION_VALUE = '__none__';
 const collectionOptions = ['autumn-edit', 'workwear-edit', 'weekend-essentials'];
-const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '30W 30L', '32W 30L', '34W 32L', '36W 32L'];
 const badgeOptions: ProductBadge[] = ['new', 'sale', 'bestseller', 'exclusive'];
 const sizeModelKeys = ['dresses_women', 'tops_women', 'knitwear_women', 'trousers_women', 'outerwear_women', 'outerwear_men', 'knitwear_men', 'shirts_men', 'trousers_men', 'jumpsuits_women', 'activewear_women'];
 
@@ -168,6 +167,12 @@ export function ProductForm({ product, mode }: ProductFormProps) {
   const [careInput, setCareInput] = useState('');
   const [imageUploading, setImageUploading] = useState(false);
 
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: getCategories,
+  });
+  const categoryOptions = categories.filter((category) => category.isActive && !category.parentId);
+
   const { control, register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(productSchema) as never,
     defaultValues: product ? productToFormValues(product) : {
@@ -184,6 +189,8 @@ export function ProductForm({ product, mode }: ProductFormProps) {
   const { fields: variantFields, append: appendVariant, remove: removeVariant } = useFieldArray({ control, name: 'variants' });
 
   const nameValue = watch('name');
+  const selectedCategory = watch('category');
+  const selectedCategoryMissing = !!selectedCategory && !categoryOptions.some((category) => category.slug === selectedCategory);
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -279,13 +286,16 @@ export function ProductForm({ product, mode }: ProductFormProps) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="category">Category</Label>
-            <Select value={watch('category')} onValueChange={(v) => setValue('category', v)}>
-              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+            <Select value={selectedCategory} onValueChange={(v) => setValue('category', v)} disabled={categoriesLoading}>
+              <SelectTrigger><SelectValue placeholder={categoriesLoading ? 'Loading categories...' : 'Select category'} /></SelectTrigger>
               <SelectContent>
-                {categoryOptions.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+                {selectedCategoryMissing && <SelectItem value={selectedCategory}>{selectedCategory.replace(/-/g, ' ')} (current)</SelectItem>}
+                {categoryOptions.map((category) => <SelectItem key={category.id} value={category.slug}>{category.name}</SelectItem>)}
+                {!categoriesLoading && categoryOptions.length === 0 && <SelectItem value="__no_categories__" disabled>No active categories</SelectItem>}
               </SelectContent>
             </Select>
             {errors.category && <p className="text-xs text-destructive">{errors.category.message}</p>}
+            <p className="text-xs text-muted-foreground">Categories come from Admin → Categories. Create a new category there and it will appear here automatically.</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="subcategory">Subcategory (optional)</Label>
@@ -336,7 +346,7 @@ export function ProductForm({ product, mode }: ProductFormProps) {
                 <Input placeholder="Colour (optional)" {...register(`images.${idx}.colour`)} />
                 <div className="flex items-center gap-2 px-1">
                   <Controller control={control} name={`images.${idx}.isTryOnReady`} render={({ field: ready }) => <Switch checked={ready.value ?? false} onCheckedChange={ready.onChange} />} />
-                  <Label className="text-xs">Clean VTO garment image</Label>
+                  <Label className="text-xs">Clean VTO product image</Label>
                 </div>
               </div>
               <Button type="button" variant="ghost" size="icon" onClick={() => removeImage(idx)}><Trash2 className="h-4 w-4" /></Button>
@@ -417,7 +427,7 @@ export function ProductForm({ product, mode }: ProductFormProps) {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-lg font-semibold">Variants</h3>
-          <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ id: genId('v'), sku: '', colour: '', colourHex: '#000000', size: 'S', stock: 0 })}>
+          <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ id: genId('v'), sku: '', colour: '', colourHex: '#000000', size: '', stock: 0 })}>
             <Plus className="h-4 w-4 mr-1" /> Add Variant
           </Button>
         </div>
@@ -429,10 +439,7 @@ export function ProductForm({ product, mode }: ProductFormProps) {
               <Input placeholder="SKU" {...register(`variants.${idx}.sku`)} className="flex-1" />
               <Input placeholder="Colour" {...register(`variants.${idx}.colour`)} className="flex-1" />
               <Input type="color" {...register(`variants.${idx}.colourHex`)} className="w-12 h-9 p-1" />
-              <Select value={watch(`variants.${idx}.size`)} onValueChange={(v) => setValue(`variants.${idx}.size`, v)}>
-                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                <SelectContent>{sizeOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
+              <Input placeholder="Size (e.g. M, One Size, UK 9)" {...register(`variants.${idx}.size`)} className="w-40" />
               <Input type="number" placeholder="Stock" {...register(`variants.${idx}.stock`)} className="w-20" />
               <Button type="button" variant="ghost" size="icon" onClick={() => removeVariant(idx)}><Trash2 className="h-4 w-4" /></Button>
             </div>
