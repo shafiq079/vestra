@@ -171,7 +171,7 @@ export function ProductForm({ product, mode }: ProductFormProps) {
     queryKey: ['categories'],
     queryFn: getCategories,
   });
-  const categoryOptions = categories.filter((category) => category.isActive && !category.parentId);
+  const categoryOptions = categories.filter((category) => category.isActive);
 
   const { control, register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(productSchema) as never,
