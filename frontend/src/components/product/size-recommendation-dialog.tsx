@@ -29,7 +29,6 @@ interface SizeRecommendationDialogProps {
 }
 
 type UnitSystem = 'metric' | 'imperial';
-type PreferredFit = 'fitted' | 'regular' | 'relaxed';
 
 const KG_TO_LB = 2.2046226218;
 const CM_TO_IN = 1 / 2.54;
@@ -141,7 +140,6 @@ function MeasurementField({
 
 export function SizeRecommendationDialog({ open, onOpenChange, product, onSelectSize }: SizeRecommendationDialogProps) {
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
-  const [preferredFit, setPreferredFit] = useState<PreferredFit>('regular');
   const [measurements, setMeasurements] = useState<Record<string, number | string>>({});
   const [result, setResult] = useState<SizeRecommendationResult | null>(null);
   const [submitError, setSubmitError] = useState('');
@@ -163,7 +161,6 @@ export function SizeRecommendationDialog({ open, onOpenChange, product, onSelect
     setMeasurements({});
     setResult(null);
     setSubmitError('');
-    setPreferredFit('regular');
     setUnitSystem('metric');
   }, [product.id]);
 
@@ -190,7 +187,7 @@ export function SizeRecommendationDialog({ open, onOpenChange, product, onSelect
       const recommendation = await submitSizeRecommendation({
         productId: product.id,
         measurements: normalized,
-        preferredFit,
+        preferredFit: 'regular',
         unitSystem,
       });
       setResult(recommendation);
@@ -209,7 +206,7 @@ export function SizeRecommendationDialog({ open, onOpenChange, product, onSelect
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto overscroll-contain sm:max-w-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Ruler className="h-5 w-5" /> Find My Size</DialogTitle>
           <DialogDescription>
@@ -254,20 +251,6 @@ export function SizeRecommendationDialog({ open, onOpenChange, product, onSelect
                   }}
                 />
               ))}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="size-rec-fit">Preferred fit</Label>
-              <select
-                id="size-rec-fit"
-                value={preferredFit}
-                onChange={(event) => setPreferredFit(event.target.value as PreferredFit)}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="fitted">Fitted</option>
-                <option value="regular">Regular</option>
-                <option value="relaxed">Relaxed</option>
-              </select>
             </div>
 
             {submitError && (
