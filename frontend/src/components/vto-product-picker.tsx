@@ -151,7 +151,7 @@ export function VtoProductPicker({ open, onOpenChange, products, onSelect, selec
         <SheetContent side="bottom" className="h-[90vh] flex flex-col p-0" aria-describedby={undefined}>
           <SheetHeader className="px-4 pt-4 pb-2 border-b">
             <SheetTitle>Choose a garment to try on</SheetTitle>
-            <SheetDescription>Browse VTO-eligible pieces and select one to preview.</SheetDescription>
+            <SheetDescription>Choose any VTO-eligible garment. After you upload a photo, it stays ready while you switch products.</SheetDescription>
           </SheetHeader>
           <div className="px-4 py-3 border-b shrink-0">{filterBar}</div>
           <div className="flex-1 overflow-y-auto px-4 py-3">{productList}</div>
@@ -165,7 +165,7 @@ export function VtoProductPicker({ open, onOpenChange, products, onSelect, selec
       <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Choose a garment to try on</DialogTitle>
-          <DialogDescription>Browse VTO-eligible pieces and select one to preview.</DialogDescription>
+          <DialogDescription>Choose any VTO-eligible garment. After you upload a photo, it stays ready while you switch products.</DialogDescription>
         </DialogHeader>
         <div className="shrink-0">{filterBar}</div>
         <div className="flex-1 overflow-y-auto max-h-[55vh] pr-1">{productList}</div>
