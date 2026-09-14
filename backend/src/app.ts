@@ -17,6 +17,9 @@ import { notFound } from './middleware/notFound';
 import { createGlobalRateLimit, createSensitiveRateLimit, rejectUnsafeInput } from './middleware/security';
 import { createApiRouter } from './routes';
 import { createDefaultVirtualTryOnDependencies, type VirtualTryOnDependencies } from './services/virtualTryOnService';
+import {
+  createDefaultSizeRecommendationMlClient, type SizeRecommendationMlClient,
+} from './services/sizeRecommendationMlClient';
 
 /** Ceiling on JSON/urlencoded bodies — a basic denial-of-service guard. */
 const BODY_SIZE_LIMIT = '1mb';
@@ -29,11 +32,14 @@ export interface CreateAppOptions {
   enableDiagnostics?: boolean;
   /** Test seam for Pixelcut and Cloudinary doubles. */
   virtualTryOn?: VirtualTryOnDependencies;
+  /** Test seam for the independent Python ML service. */
+  sizeRecommendation?: SizeRecommendationMlClient;
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
   const enableDiagnostics = options.enableDiagnostics ?? env.isTest;
   const virtualTryOn = options.virtualTryOn ?? createDefaultVirtualTryOnDependencies();
+  const sizeRecommendation = options.sizeRecommendation ?? createDefaultSizeRecommendationMlClient();
 
   const app = express();
 
@@ -81,7 +87,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   app.use(rejectUnsafeInput);
 
-  app.use('/api', createApiRouter({ enableDiagnostics, virtualTryOn }));
+  app.use('/api', createApiRouter({ enableDiagnostics, virtualTryOn, sizeRecommendation }));
 
   // Order matters: unmatched routes become a 404 HttpError, then every error —
   // 404s included — is rendered as `{ code, message, details? }`.
