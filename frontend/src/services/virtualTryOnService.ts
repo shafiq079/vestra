@@ -33,6 +33,32 @@ export async function cancelTryOnJob(jobId: string, accessToken?: string): Promi
 export async function submitTryOnFeedback(jobId: string, feedback: 'helpful' | 'not_helpful', accessToken?: string): Promise<VirtualTryOnJob> {
   return (await apiClient.put<VirtualTryOnJob>(`/virtual-try-on/jobs/${jobId}/feedback`, { feedback }, { headers: headers(accessToken) })).data;
 }
+
+async function browserCompatibleImageFile(blob: Blob, jobId: string): Promise<File> {
+  if (blob.type === 'image/jpeg') return new File([blob], `vto-preview-${jobId}.jpg`, { type: 'image/jpeg' });
+  if (blob.type === 'image/png') return new File([blob], `vto-preview-${jobId}.png`, { type: 'image/png' });
+
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width; canvas.height = bitmap.height;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to prepare the previous preview for another try-on.');
+    context.drawImage(bitmap, 0, 0);
+    const converted = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((value) => value ? resolve(value) : reject(new Error('Unable to prepare the previous preview for another try-on.')), 'image/png');
+    });
+    return new File([converted], `vto-preview-${jobId}.png`, { type: 'image/png' });
+  } finally { bitmap.close(); }
+}
+
+export async function getTryOnSourceFile(jobId: string, accessToken?: string): Promise<File> {
+  const response = await apiClient.get<Blob>(`/virtual-try-on/jobs/${jobId}/source-image`, {
+    headers: headers(accessToken), responseType: 'blob', timeout: 30_000,
+  });
+  return browserCompatibleImageFile(response.data, jobId);
+}
+
 export function resultFromJob(job: VirtualTryOnJob): VirtualTryOnResult | null {
   if (job.status !== 'completed' || !job.resultImage) return null;
   return { id: job.id, productId: job.productId, productName: job.productName, productImage: job.productImage,
