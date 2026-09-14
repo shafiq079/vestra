@@ -1,4 +1,4 @@
-import { Sparkles, Ruler, Camera, Activity, CheckCircle, AlertCircle } from 'lucide-react';
+import { Sparkles, Ruler, Camera, Activity, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
@@ -10,12 +10,12 @@ export function AdminAiFeaturesPage() {
     {
       name: 'Size Recommendation Engine',
       icon: Ruler,
-      status: 'inactive',
-      description: 'The Phase 13 ML model has not been supplied, so size recommendation is currently unavailable.',
+      status: 'active',
+      description: 'Phase 13 uses a trained scikit-learn Decision Tree model served through an independent FastAPI service.',
       metrics: [
         { label: 'Total Requests', value: String(dashboard?.sizeRecUsage.total ?? 0) },
         { label: 'Success Rate', value: `${dashboard?.sizeRecUsage.successRate ?? 0}%` },
-        { label: 'Status', value: 'Unavailable' },
+        { label: 'Model', value: 'Decision Tree v1' },
       ],
     },
     {
@@ -60,9 +60,8 @@ export function AdminAiFeaturesPage() {
                   <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{f.description}</p>
                 </div>
               </div>
-              <Badge variant={f.status === 'active' ? 'default' : 'outline'} className="flex items-center gap-1">
-                {f.status === 'active' ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                {f.status === 'active' ? 'Active' : 'Inactive'}
+              <Badge variant="default" className="flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" /> Active
               </Badge>
             </div>
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
@@ -85,7 +84,7 @@ export function AdminAiFeaturesPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Size Recommendation Model</span>
-            <div className="flex items-center gap-2"><span className="text-muted-foreground">●</span><span className="text-xs">Unavailable until Phase 13</span></div>
+            <div className="flex items-center gap-2"><span className="text-success">●</span><span className="text-xs">Decision Tree service configured</span></div>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Virtual Try-On Provider</span>

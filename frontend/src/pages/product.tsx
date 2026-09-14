@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useLayoutEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Heart, ShoppingBag, Ruler, Scan, Star, ChevronLeft, ChevronRight, Truck, RefreshCw, Shield } from 'lucide-react';
@@ -8,6 +8,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { useUIStore } from '@/store/uiStore';
 import { ProductCard } from '@/components/product/product-card';
+import { SizeRecommendationDialog } from '@/components/product/size-recommendation-dialog';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -93,7 +94,6 @@ function ProductPageSkeleton() {
 
 export function ProductPage() {
   const { slug } = useParams();
-  const navigate = useNavigate();
   const { data: product, isLoading } = useQuery({ queryKey: ['product', slug], queryFn: () => getProduct(slug!) });
   const { data: related } = useQuery({ queryKey: ['related', slug], queryFn: () => getRelated(product?.id || ''), enabled: !!product?.id });
 
@@ -101,6 +101,7 @@ export function ProductPage() {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
+  const [sizeRecOpen, setSizeRecOpen] = useState(false);
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -108,6 +109,7 @@ export function ProductPage() {
     setSelectedSize('');
     setQuantity(1);
     setActiveImage(0);
+    setSizeRecOpen(false);
   }, [slug]);
 
   const addItem = useCartStore((s) => s.addItem);
@@ -201,7 +203,7 @@ export function ProductPage() {
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium">Size: <span className="text-muted-foreground">{size}</span></p>
-              {product.sizeRecommendationEligible && <button onClick={() => navigate(`/product/${product.slug}?sizeRec=true`)} className="text-sm text-ai hover:underline flex items-center gap-1"><Ruler className="h-4 w-4" /> Find My Size</button>}
+              {product.sizeRecommendationEligible && <button type="button" onClick={() => setSizeRecOpen(true)} className="text-sm text-ai hover:underline flex items-center gap-1"><Ruler className="h-4 w-4" /> Find My Size</button>}
             </div>
             <div className="flex flex-wrap gap-2">
               {product.availableSizes.map((s) => {
@@ -287,6 +289,15 @@ export function ProductPage() {
             {related.map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
         </section>
+      )}
+
+      {product.sizeRecommendationEligible && (
+        <SizeRecommendationDialog
+          open={sizeRecOpen}
+          onOpenChange={setSizeRecOpen}
+          product={product}
+          onSelectSize={(recommendedSize) => setSelectedSize(recommendedSize)}
+        />
       )}
     </div>
   );
