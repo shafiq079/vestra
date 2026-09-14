@@ -26,7 +26,7 @@ dotenv.config({ quiet: true });
  */
 export const SENSITIVE_KEYS = new Set([
   'MONGODB_URI', 'JWT_SECRET', 'DEMO_CUSTOMER_PASSWORD', 'DEMO_ADMIN_PASSWORD',
-  'PIXELCUT_API_KEY', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
+  'PIXELCUT_API_KEY', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET', 'ML_SERVICE_KEY',
 ]);
 
 const MONGODB_URI_SCHEMES = ['mongodb://', 'mongodb+srv://'] as const;
@@ -65,6 +65,11 @@ const envSchema = z.object({
   VTO_JOB_DEADLINE_SECONDS: z.coerce.number().int().min(60).max(3600).default(600),
   VTO_SOURCE_URL_TTL_SECONDS: z.coerce.number().int().min(120).max(7200).default(900),
   VTO_RECONCILE_INTERVAL_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
+  // Optional at process boot so unrelated backend features continue to work if
+  // the independent Phase 13 service is intentionally stopped or not configured.
+  ML_SERVICE_URL: z.string().trim().url().optional(),
+  ML_SERVICE_KEY: z.string().min(16).max(256).optional(),
+  ML_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(500).max(15_000).default(3000),
 });
 
 export type NodeEnvironment = z.infer<typeof envSchema>['NODE_ENV'];
@@ -93,6 +98,9 @@ export interface AppEnvironment {
   readonly VTO_JOB_DEADLINE_SECONDS: number;
   readonly VTO_SOURCE_URL_TTL_SECONDS: number;
   readonly VTO_RECONCILE_INTERVAL_SECONDS: number;
+  readonly ML_SERVICE_URL?: string;
+  readonly ML_SERVICE_KEY?: string;
+  readonly ML_SERVICE_TIMEOUT_MS: number;
   /** CORS_ORIGIN split into individual origins. */
   readonly corsOrigins: readonly string[];
   readonly isProduction: boolean;
@@ -172,6 +180,9 @@ function loadEnvironment(): AppEnvironment {
     VTO_JOB_DEADLINE_SECONDS: auth.VTO_JOB_DEADLINE_SECONDS,
     VTO_SOURCE_URL_TTL_SECONDS: auth.VTO_SOURCE_URL_TTL_SECONDS,
     VTO_RECONCILE_INTERVAL_SECONDS: auth.VTO_RECONCILE_INTERVAL_SECONDS,
+    ...(auth.ML_SERVICE_URL ? { ML_SERVICE_URL: auth.ML_SERVICE_URL } : {}),
+    ...(auth.ML_SERVICE_KEY ? { ML_SERVICE_KEY: auth.ML_SERVICE_KEY } : {}),
+    ML_SERVICE_TIMEOUT_MS: auth.ML_SERVICE_TIMEOUT_MS,
     corsOrigins: Object.freeze(corsOrigins),
     isProduction: NODE_ENV === 'production',
     isTest: NODE_ENV === 'test',
