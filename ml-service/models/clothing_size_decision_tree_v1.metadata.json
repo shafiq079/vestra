@@ -1,0 +1,71 @@
+{
+  "baseline_metrics": {
+    "accuracy": 0.448598,
+    "balanced_accuracy": 0.371888,
+    "log_loss": 7.17492,
+    "macro_f1": 0.3782,
+    "weighted_f1": 0.447759,
+    "within_one_size": 0.73708
+  },
+  "classes": [
+    "L",
+    "M",
+    "S",
+    "XL",
+    "XXL",
+    "XXS",
+    "XXXL"
+  ],
+  "dataset_rows": 119734,
+  "dataset_sha256": "7e33cd8bc0bd1a0f480c252bd3417b3148fdc7c71f3bfefdc96672ee25b0c882",
+  "evaluation_split": "80/20 GroupShuffleSplit by (weight, age, height), random_state=42",
+  "feature_units": {
+    "age": "years",
+    "height": "cm",
+    "weight": "kg"
+  },
+  "features": [
+    "weight",
+    "age",
+    "height"
+  ],
+  "joblib_version": "1.5.3",
+  "model_name": "VESTRA clothing size Decision Tree",
+  "model_sha256": "2ae477fa6dbd508551d0737d4a7030f932c86e7717e8de73de301925953a7d77",
+  "model_type": "sklearn.tree.DecisionTreeClassifier",
+  "model_version": "1.0.0",
+  "numpy_version": "2.3.5",
+  "pandas_version": "2.2.3",
+  "python_version": "3.13.5",
+  "scikit_learn_version": "1.8.0",
+  "selected_params": {
+    "ccp_alpha": 0.0005,
+    "class_weight": null,
+    "criterion": "log_loss",
+    "max_depth": 14,
+    "max_features": null,
+    "min_samples_leaf": 20,
+    "min_samples_split": 25,
+    "random_state": 42
+  },
+  "size_order": [
+    "XXS",
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "XXXL"
+  ],
+  "training_note": "Age values <=0 or >100 are treated as missing and imputed with the training median. Missing age/height values are median-imputed inside the persisted pipeline. Repeated observations are retained for training; measurement-identical rows are grouped during evaluation to prevent train/test leakage.",
+  "training_rows": 119734,
+  "tuned_holdout_metrics": {
+    "accuracy": 0.497803,
+    "balanced_accuracy": 0.42349,
+    "log_loss": 1.16008,
+    "macro_f1": 0.425028,
+    "weighted_f1": 0.497842,
+    "within_one_size": 0.775461
+  }
+}
