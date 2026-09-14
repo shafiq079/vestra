@@ -41,7 +41,7 @@ def main() -> None:
     frame = load_and_clean(args.dataset)
 
     plt.figure(figsize=(8, 5))
-    sns.countplot(data=frame, x="size", order=SIZE_ORDER)
+    sns.countplot(data=frame, x="size", order=SIZE_ORDER, color="C0")
     plt.title("Clothing Size Class Distribution")
     plt.xlabel("Size")
     plt.ylabel("Rows")
@@ -53,7 +53,7 @@ def main() -> None:
         ("age", "Age Distribution", "Age (years)"),
     ]:
         plt.figure(figsize=(8, 5))
-        sns.histplot(frame[column].dropna(), bins=30, kde=True)
+        sns.histplot(frame[column].dropna(), bins=30, kde=True, color="C0")
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel("Rows")
@@ -66,7 +66,7 @@ def main() -> None:
     save_current(output / "measurement_correlation.png")
 
     plt.figure(figsize=(10, 5))
-    sns.boxplot(data=frame, x="size", y="weight", order=SIZE_ORDER)
+    sns.boxplot(data=frame, x="size", y="weight", order=SIZE_ORDER, color="C0")
     plt.title("Weight by Clothing Size")
     plt.xlabel("Size")
     plt.ylabel("Weight (kg)")
