@@ -28,6 +28,18 @@ The tuned Decision Tree holdout metrics recorded in the committed metadata are:
 
 These values are reported as measured results, not inflated. The feature is presented as size guidance rather than guaranteed fit.
 
+## Automated verification
+
+GitHub Actions Phase 13 CI completed successfully for the pull-request head on 14 September 2026:
+
+- Backend `npm ci` — passed.
+- Backend TypeScript build — passed.
+- Full backend test command `npm test -- --run` — passed.
+- Frontend `npm ci` — passed.
+- Frontend production build — passed.
+- Python dependencies install — passed.
+- Python `pytest -q` — passed.
+
 ## Known limitations
 
 - The supplied dataset contains only `weight`, `age`, `height` and `size`; it does not contain bust/chest, waist, hips, shoulder, inseam, garment type or preferred fit as model features.
@@ -36,8 +48,7 @@ These values are reported as measured results, not inflated. The feature is pres
 - Decision Tree leaf probabilities are used as confidence guidance and should not be interpreted as a clinical or guaranteed-fit probability.
 - Product model keys currently act as aliases to the same v1 Decision Tree because the supplied dataset contains no garment-category feature. The schema/service boundary allows category-specific models to replace these aliases later without changing the frontend form architecture.
 
-## Verification still required before merge
+## Verification still required before production merge
 
-- GitHub CI: backend build + full tests, frontend build, Python tests.
-- Local/deployed smoke test of React -> Express -> FastAPI after environment configuration.
+- Local or hosted smoke test of React -> Express -> FastAPI after the two services are configured with the shared ML service key.
 - Production Render deployment is intentionally not performed from the feature branch; `main` remains the production branch.
