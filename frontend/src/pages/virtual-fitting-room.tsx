@@ -152,6 +152,10 @@ export function VirtualFittingRoomPage() {
   setActiveJob(null);
   setProcessing(false);
 
+  if (imageFile) {
+    toast.success('Photo kept for this fitting-room session.');
+  }
+
   setSearchParams(
     {
       productId: product.id,
@@ -332,7 +336,7 @@ export function VirtualFittingRoomPage() {
         </div>
         <h1 className="font-display text-3xl lg:text-5xl mt-4">Virtual Fitting Room</h1>
         <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
-           See how garments look on you before you buy. Upload a photo, choose a garment, and create an AI preview.
+          Upload your photo once, then switch between eligible garments and create multiple AI try-on previews in the same session.
         </p>
       </div>
 
@@ -435,14 +439,7 @@ export function VirtualFittingRoomPage() {
                 <Palette className="h-4 w-4" /> Change Colour
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => {
-                setResult(null);
-                setFeedback(null);
-                setPickerOpen(true);
-              }}
-            >
+            <Button variant="outline" onClick={() => setPickerOpen(true)}>
               <Shirt className="h-4 w-4" /> Try Another Product
             </Button>
             <Button variant="ghost" onClick={clearSession}>
@@ -571,6 +568,9 @@ export function VirtualFittingRoomPage() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
+                <p className="mt-2 text-xs text-center text-muted-foreground">
+                  Photo ready for this session. Change products without uploading it again.
+                </p>
               </div>
             ) : (
               <button
