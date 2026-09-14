@@ -1,0 +1,5 @@
+-r requirements.txt
+matplotlib==3.10.8
+seaborn==0.13.2
+pytest==9.0.2
+httpx==0.28.1
