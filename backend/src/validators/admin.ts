@@ -11,7 +11,13 @@ const image = z.object({ id: z.string().optional(), url: z.string().trim().min(1
 const variant = z.object({ id: z.string().optional(), sku: z.string().trim().min(1).max(100), colour: z.string().trim().min(1), colourHex: z.string().trim().min(1), size: z.string().trim().min(1), stock: z.number().int().nonnegative(), image: z.string().trim().optional() }).strict();
 const ML_STANDARD_SIZES = new Set(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
 
-function validateMlSizes(value: { sizeRecommendationEligible?: boolean; variants?: Array<{ size: string }>; availableSizes?: string[] }, ctx: z.RefinementCtx) {
+type MlSizeValidationInput = {
+  sizeRecommendationEligible?: boolean | undefined;
+  variants?: Array<{ size: string }> | undefined;
+  availableSizes?: string[] | undefined;
+};
+
+function validateMlSizes(value: MlSizeValidationInput, ctx: z.RefinementCtx) {
   if (!value.sizeRecommendationEligible) return;
 
   value.variants?.forEach((item, index) => {
@@ -68,7 +74,7 @@ const productCreate = z.object({
   if (v.salePrice !== undefined && v.salePrice >= v.price) ctx.addIssue({ code: 'custom', path: ['salePrice'], message: 'Sale price must be lower than price' });
   validateMlSizes(v, ctx);
 });
-const productUpdate = z.object(productFields).partial().strict().superRefine(validateMlSizes);
+const productUpdate = z.object(productFields).partial().strict().superRefine((v, ctx) => validateMlSizes(v, ctx));
 export type ProductInput = z.infer<typeof productCreate>;
 export type ProductUpdate = z.infer<typeof productUpdate>;
 export const parseProductCreate = (body: unknown) => parseBody(productCreate, body, 'Invalid product.');
