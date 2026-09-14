@@ -45,5 +45,11 @@ export function parseSizeRecommendationRequest(value: unknown): SizeRecommendati
       measurements: ['Too many measurement fields were supplied.'],
     });
   }
-  return result.data;
+
+  return {
+    productId: result.data.productId,
+    measurements: result.data.measurements,
+    unitSystem: result.data.unitSystem,
+    ...(result.data.preferredFit ? { preferredFit: result.data.preferredFit } : {}),
+  };
 }
