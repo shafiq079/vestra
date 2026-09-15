@@ -2,6 +2,8 @@ import { apiClient } from './apiClient';
 import type { ApiError, Product, VirtualTryOnJob, VirtualTryOnRequest, VirtualTryOnResult } from '../types';
 
 const VTO_SESSION_KEY = 'vestra-vto-session-id';
+const chainedSourceReferences = new WeakMap<File, { jobId: string; accessToken?: string }>();
+
 function sessionId(): string {
   let value = sessionStorage.getItem(VTO_SESSION_KEY);
   if (!value) { value = crypto.randomUUID(); sessionStorage.setItem(VTO_SESSION_KEY, value); }
@@ -18,10 +20,23 @@ export async function getProductForTryOn(productId: string): Promise<Product | n
   catch (error) { if (isNotFound(error)) return null; throw error; }
 }
 export async function submitTryOn(request: VirtualTryOnRequest, idempotencyKey: string): Promise<VirtualTryOnJob> {
-  const data = new FormData(); data.append('productId', request.productId); data.append('variantColour', request.variantColour);
-  data.append('consentGiven', String(request.consentGiven)); data.append('image', request.imageFile);
+  const data = new FormData();
+  data.append('productId', request.productId);
+  data.append('variantColour', request.variantColour);
+  data.append('consentGiven', String(request.consentGiven));
+
+  const chainedSource = chainedSourceReferences.get(request.imageFile);
+  if (chainedSource) data.append('sourceJobId', chainedSource.jobId);
+  else data.append('image', request.imageFile);
+
   return (await apiClient.post<VirtualTryOnJob>('/virtual-try-on', data, {
-    headers: { ...headers(), 'X-Idempotency-Key': idempotencyKey, 'Content-Type': 'multipart/form-data' }, timeout: 30_000,
+    headers: {
+      ...headers(),
+      'X-Idempotency-Key': idempotencyKey,
+      ...(chainedSource?.accessToken ? { 'X-VTO-Source-Token': chainedSource.accessToken } : {}),
+      'Content-Type': 'multipart/form-data',
+    },
+    timeout: 30_000,
   })).data;
 }
 export async function getTryOnJob(jobId: string, accessToken?: string): Promise<VirtualTryOnJob> {
@@ -33,6 +48,18 @@ export async function cancelTryOnJob(jobId: string, accessToken?: string): Promi
 export async function submitTryOnFeedback(jobId: string, feedback: 'helpful' | 'not_helpful', accessToken?: string): Promise<VirtualTryOnJob> {
   return (await apiClient.put<VirtualTryOnJob>(`/virtual-try-on/jobs/${jobId}/feedback`, { feedback }, { headers: headers(accessToken) })).data;
 }
+
+/**
+ * Compatibility adapter for the fitting-room page: later try-ons no longer download the previous
+ * image into the browser. This zero-byte marker carries only an in-memory reference to the completed
+ * job; submitTryOn sends that job id to the backend, which chains the stored Cloudinary result URL.
+ */
+export async function getTryOnSourceFile(jobId: string, accessToken?: string): Promise<File> {
+  const marker = new File([], `vto-chain-${jobId}`, { type: 'application/x-vestra-vto-chain' });
+  chainedSourceReferences.set(marker, { jobId, ...(accessToken ? { accessToken } : {}) });
+  return marker;
+}
+
 export function resultFromJob(job: VirtualTryOnJob): VirtualTryOnResult | null {
   if (job.status !== 'completed' || !job.resultImage) return null;
   return { id: job.id, productId: job.productId, productName: job.productName, productImage: job.productImage,

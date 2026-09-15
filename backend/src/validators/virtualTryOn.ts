@@ -11,6 +11,7 @@ const submission = z.object({
   productId: objectId,
   variantColour: z.string().trim().min(1).max(100),
   consentGiven: z.literal('true'),
+  sourceJobId: objectId.optional(),
 }).strict();
 const feedback = z.object({ feedback: z.enum(['helpful', 'not_helpful']) }).strict();
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search, Shirt } from 'lucide-react';
+import { Package, Search } from 'lucide-react';
 import type { Product, GenderCollection } from '@/types';
 import { formatPrice } from '@/utils/formatters';
 import { handleImageError, getProductImageUrl } from '@/utils/imageUtils';
@@ -17,18 +17,32 @@ interface VtoProductPickerProps {
   selectedProductId?: string;
 }
 
-const CATEGORIES = ['dresses', 'outerwear', 'tops', 'knitwear', 'trousers', 'jumpsuits'];
 const GENDERS: { value: 'all' | GenderCollection; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'women', label: 'Women' },
   { value: 'men', label: 'Men' },
+  { value: 'unisex', label: 'Unisex' },
 ];
+
+function formatFilterLabel(value: string): string {
+  return value
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 export function VtoProductPicker({ open, onOpenChange, products, onSelect, selectedProductId }: VtoProductPickerProps) {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [gender, setGender] = useState<'all' | GenderCollection>('all');
   const [category, setCategory] = useState<string>('all');
+
+  // Categories come from the eligible products returned by the API. This keeps
+  // Virtual Try-On open to new admin-created categories such as accessories,
+  // caps, shoes, or future product types without another frontend code change.
+  const categories = useMemo(() => {
+    return Array.from(new Set(products.map((product) => product.category).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b));
+  }, [products]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -79,16 +93,15 @@ export function VtoProductPicker({ open, onOpenChange, products, onSelect, selec
         >
           All Categories
         </Button>
-        {CATEGORIES.map((c) => (
+        {categories.map((c) => (
           <Button
             key={c}
             size="sm"
             variant={category === c ? 'default' : 'outline'}
             onClick={() => setCategory(c)}
             aria-pressed={category === c}
-            className="capitalize"
           >
-            {c}
+            {formatFilterLabel(c)}
           </Button>
         ))}
       </div>
@@ -99,7 +112,7 @@ export function VtoProductPicker({ open, onOpenChange, products, onSelect, selec
     <div className="space-y-2 overflow-y-auto">
       {filtered.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground text-sm">
-          <Shirt className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
           No eligible products found.
         </div>
       ) : (
@@ -150,8 +163,8 @@ export function VtoProductPicker({ open, onOpenChange, products, onSelect, selec
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" className="h-[90vh] flex flex-col p-0" aria-describedby={undefined}>
           <SheetHeader className="px-4 pt-4 pb-2 border-b">
-            <SheetTitle>Choose a garment to try on</SheetTitle>
-            <SheetDescription>Browse VTO-eligible pieces and select one to preview.</SheetDescription>
+            <SheetTitle>Choose a product to try on</SheetTitle>
+            <SheetDescription>Choose any VTO-eligible product. Your uploaded photo stays ready while you switch products.</SheetDescription>
           </SheetHeader>
           <div className="px-4 py-3 border-b shrink-0">{filterBar}</div>
           <div className="flex-1 overflow-y-auto px-4 py-3">{productList}</div>
@@ -164,8 +177,8 @@ export function VtoProductPicker({ open, onOpenChange, products, onSelect, selec
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Choose a garment to try on</DialogTitle>
-          <DialogDescription>Browse VTO-eligible pieces and select one to preview.</DialogDescription>
+          <DialogTitle>Choose a product to try on</DialogTitle>
+          <DialogDescription>Choose any VTO-eligible product. Your uploaded photo stays ready while you switch products.</DialogDescription>
         </DialogHeader>
         <div className="shrink-0">{filterBar}</div>
         <div className="flex-1 overflow-y-auto max-h-[55vh] pr-1">{productList}</div>

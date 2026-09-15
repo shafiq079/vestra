@@ -16,9 +16,17 @@ export function createVirtualTryOnController(deps: VirtualTryOnDependencies) {
   const submit: RequestHandler = async (req, res) => {
     // Consent and the bounded multipart field set are validated before Cloudinary or Pixelcut is called.
     const body = parseTryOnSubmission(req.body);
-    const image = validateImageUpload(req.file);
-    const result = await service.submitTryOn({ ...body, image,
-      idempotencyKey: parseIdempotencyKey(req.get('X-Idempotency-Key')) }, identity(req), deps);
+    const image = body.sourceJobId ? undefined : validateImageUpload(req.file);
+    const result = await service.submitTryOn({
+      productId: body.productId,
+      variantColour: body.variantColour,
+      idempotencyKey: parseIdempotencyKey(req.get('X-Idempotency-Key')),
+      ...(image ? { image } : {}),
+      ...(body.sourceJobId ? {
+        sourceJobId: body.sourceJobId,
+        ...(req.get('X-VTO-Source-Token') ? { sourceCapability: req.get('X-VTO-Source-Token')! } : {}),
+      } : {}),
+    }, identity(req), deps);
     res.status(202).json(result);
   };
   const status: RequestHandler = async (req, res) => res.json(await service.getTryOnJob(
