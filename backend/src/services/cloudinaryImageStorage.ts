@@ -18,15 +18,19 @@ export interface StoredImageAsset {
   bytes: number;
 }
 
+export type PrivateImageAssetRef = Pick<StoredImageAsset, 'publicId' | 'format' | 'deliveryType'>;
+
 export interface ImageStorage {
   uploadTemporary(image: ValidatedImage, publicId: string): Promise<StoredImageAsset>;
   uploadCatalogue(image: ValidatedImage): Promise<StoredImageAsset>;
-  temporaryAccessUrl(asset: StoredImageAsset, expiresAt: Date): string;
+  uploadTemporaryFromUrl?(sourceUrl: string, publicId: string): Promise<StoredImageAsset>;
+  temporaryAccessUrl(asset: PrivateImageAssetRef, expiresAt: Date): string;
   delete(asset: Pick<StoredImageAsset, 'publicId' | 'deliveryType'>): Promise<void>;
 }
 
 export interface CloudinaryTransport {
   upload(buffer: Buffer, options: UploadApiOptions): Promise<UploadApiResponse>;
+  uploadRemote?(sourceUrl: string, options: UploadApiOptions): Promise<UploadApiResponse>;
   privateDownloadUrl(publicId: string, format: string, options: {
     resource_type: 'image'; type: 'private'; expires_at: number; attachment: boolean;
   }): string;
@@ -44,6 +48,7 @@ function defaultTransport(): CloudinaryTransport {
       });
       stream.end(buffer);
     }),
+    uploadRemote: (sourceUrl, options) => cloudinary.uploader.upload(sourceUrl, options),
     privateDownloadUrl: (publicId, format, options) => cloudinary.utils.private_download_url(publicId, format, options),
     destroy: (publicId, options) => cloudinary.uploader.destroy(publicId, options),
   };
@@ -82,11 +87,25 @@ export class CloudinaryImageStorage implements ImageStorage {
     return stored;
   }
 
+  async uploadTemporaryFromUrl(sourceUrl: string, publicId: string) {
+    if (!/^vestra\/vto-results\/[0-9a-f]{24}$/i.test(publicId)) {
+      throw new Error('VTO result uploads require a VESTRA-generated result public ID.');
+    }
+    if (!this.transport.uploadRemote) throw new Error('Remote Cloudinary upload is not configured.');
+    const result = await this.transport.uploadRemote(sourceUrl, {
+      resource_type: 'image', type: 'private', public_id: publicId,
+      overwrite: true, unique_filename: false, use_filename: false,
+    });
+    const stored = assetFrom(result, 'private');
+    if (stored.publicId !== publicId) throw new Error('Cloudinary returned an unexpected VTO result public ID.');
+    return stored;
+  }
+
   uploadCatalogue(image: ValidatedImage) {
     return this.upload(image, 'vestra/catalogue', 'upload');
   }
 
-  temporaryAccessUrl(asset: StoredImageAsset, expiresAt: Date): string {
+  temporaryAccessUrl(asset: PrivateImageAssetRef, expiresAt: Date): string {
     if (asset.deliveryType !== 'private') throw new Error('Temporary access requires a private asset.');
     return this.transport.privateDownloadUrl(asset.publicId, asset.format, {
       resource_type: 'image', type: 'private', expires_at: Math.floor(expiresAt.getTime() / 1000), attachment: false,

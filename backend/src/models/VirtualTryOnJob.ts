@@ -20,6 +20,7 @@ const virtualTryOnJobSchema = new Schema({
   guestCapabilityHash: { type: String, select: false },
   idempotencyKey: { type: String, required: true, select: false },
   requestFingerprint: { type: String, required: true, select: false },
+  sourceJobId: { type: Schema.Types.ObjectId, ref: 'VirtualTryOnJob', select: false },
   productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
   productName: { type: String, required: true },
   productImage: { type: String, required: true },
@@ -32,6 +33,7 @@ const virtualTryOnJobSchema = new Schema({
   status: { type: String, enum: VTO_JOB_STATUSES, required: true, default: 'pending' },
   resultUrl: { type: String },
   resultExpiresAt: { type: Date },
+  resultAsset: { type: temporaryAssetSchema, select: false },
   errorCode: { type: String },
   temporaryAsset: { type: temporaryAssetSchema, required: true, select: false },
   sourceAccessExpiresAt: { type: Date, required: true, select: false },
@@ -49,6 +51,7 @@ const virtualTryOnJobSchema = new Schema({
 virtualTryOnJobSchema.index({ ownerKey: 1, idempotencyKey: 1 }, { unique: true });
 virtualTryOnJobSchema.index({ status: 1, deadlineAt: 1 });
 virtualTryOnJobSchema.index({ ownerUserId: 1, createdAt: -1 });
+virtualTryOnJobSchema.index({ sourceJobId: 1 });
 
 export type VirtualTryOnJobShape = InferSchemaType<typeof virtualTryOnJobSchema>;
 export const VirtualTryOnJob: Model<VirtualTryOnJobShape> =

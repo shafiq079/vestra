@@ -16,8 +16,10 @@ const PIXELCUT_RESULT_TTL_MS = 60 * 60 * 1000;
 const CLEANUP_LEASE_MS = 60 * 1000;
 const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
 const ACTIVE = ['pending', 'running'] as const;
-const INTERNAL_SELECT = '+ownerKey +guestCapabilityHash +idempotencyKey +requestFingerprint +garmentImageUrl +providerJobId +providerSubmittedAt +submissionState +temporaryAsset +sourceAccessExpiresAt +quotaDay +reservationReleased';
+const INTERNAL_SELECT = '+ownerKey +guestCapabilityHash +idempotencyKey +requestFingerprint +sourceJobId +garmentImageUrl +providerJobId +providerSubmittedAt +submissionState +temporaryAsset +resultAsset +sourceAccessExpiresAt +quotaDay +reservationReleased';
 type JobDocument = HydratedDocument<VirtualTryOnJobShape>;
+type PersistedPrivateAsset = Pick<StoredImageAsset,
+  'assetId' | 'publicId' | 'format' | 'version' | 'deliveryType' | 'width' | 'height' | 'bytes'>;
 
 export interface VirtualTryOnDependencies {
   provider: VirtualTryOnProvider;
@@ -39,7 +41,9 @@ export interface SubmitTryOnInput {
   productId: string;
   variantColour: string;
   idempotencyKey: string;
-  image: ValidatedImage;
+  image?: ValidatedImage;
+  sourceJobId?: string;
+  sourceCapability?: string;
 }
 
 function digest(value: string): string { return createHash('sha256').update(value).digest('hex'); }
@@ -60,6 +64,13 @@ function sameDigest(left: string, right: string): boolean {
 }
 function internalQuery(id: string | Types.ObjectId) {
   return VirtualTryOnJob.findById(id).select(INTERNAL_SELECT);
+}
+function persistedAsset(asset: {
+  assetId: string; publicId: string; format: string; version: number; deliveryType: 'private';
+  width: number; height: number; bytes: number;
+}): PersistedPrivateAsset {
+  return { assetId: asset.assetId, publicId: asset.publicId, format: asset.format, version: asset.version,
+    deliveryType: asset.deliveryType, width: asset.width, height: asset.height, bytes: asset.bytes };
 }
 
 function publicDto(job: JobDocument, now: Date, guestToken?: string) {
@@ -166,6 +177,7 @@ async function recoverTerminal(job: JobDocument, deps: VirtualTryOnDependencies,
 interface TerminalValues {
   resultUrl?: string;
   resultExpiresAt?: Date;
+  resultAsset?: PersistedPrivateAsset;
   errorCode?: string;
   submissionState?: 'reserved' | 'submitted' | 'uncertain';
   clearResult?: boolean;
@@ -176,10 +188,13 @@ async function transitionTerminal(jobId: Types.ObjectId, status: 'completed' | '
   const set: Record<string, unknown> = { status };
   if (values.resultUrl) set.resultUrl = values.resultUrl;
   if (values.resultExpiresAt) set.resultExpiresAt = values.resultExpiresAt;
+  if (values.resultAsset) set.resultAsset = values.resultAsset;
   if (values.errorCode) set.errorCode = values.errorCode;
   if (values.submissionState) set.submissionState = values.submissionState;
   const update = values.clearResult || status !== 'completed'
-    ? { $set: set, $unset: status === 'completed' ? { resultUrl: 1 } : { resultUrl: 1, resultExpiresAt: 1 } }
+    ? { $set: set, $unset: status === 'completed'
+      ? { resultUrl: 1, resultAsset: 1 }
+      : { resultUrl: 1, resultExpiresAt: 1, resultAsset: 1 } }
     : { $set: set };
   const transitioned = await VirtualTryOnJob.findOneAndUpdate({ _id: jobId, status: { $in: ACTIVE } }, update, { new: true })
     .select(INTERNAL_SELECT);
@@ -189,11 +204,20 @@ async function transitionTerminal(jobId: Types.ObjectId, status: 'completed' | '
   return current;
 }
 
-async function expireCompletedResult(job: JobDocument, now: Date): Promise<JobDocument> {
-  if (job.status !== 'completed' || !job.resultExpiresAt || job.resultExpiresAt > now || !job.resultUrl) return job;
-  return await VirtualTryOnJob.findOneAndUpdate({ _id: job._id, status: 'completed', resultExpiresAt: { $lte: now } }, {
+async function expireCompletedResult(job: JobDocument, now: Date, deps: VirtualTryOnDependencies): Promise<JobDocument> {
+  if (job.status !== 'completed' || !job.resultExpiresAt || job.resultExpiresAt > now) return job;
+  let current = await VirtualTryOnJob.findOneAndUpdate({ _id: job._id, status: 'completed', resultExpiresAt: { $lte: now } }, {
     $set: { errorCode: 'VTO_RESULT_EXPIRED' }, $unset: { resultUrl: 1 },
   }, { new: true }).select(INTERNAL_SELECT) ?? job;
+
+  if (current.resultAsset) {
+    try {
+      await deps.imageStorage.delete({ publicId: current.resultAsset.publicId, deliveryType: 'private' });
+      current = await VirtualTryOnJob.findOneAndUpdate({ _id: current._id }, { $unset: { resultAsset: 1 } }, { new: true })
+        .select(INTERNAL_SELECT) ?? current;
+    } catch { logger.warn(`Virtual Try-On result cleanup deferred for job ${job.id}.`); }
+  }
+  return current;
 }
 
 async function ownedJob(jobId: string, identity: TryOnIdentity, suppliedCapability?: string): Promise<{ job: JobDocument; guestToken?: string }> {
@@ -213,12 +237,32 @@ async function ownedJob(jobId: string, identity: TryOnIdentity, suppliedCapabili
 }
 
 export async function submitTryOn(input: SubmitTryOnInput, identity: TryOnIdentity, deps: VirtualTryOnDependencies) {
-  const now = deps.now(); const { ownerKey, rateOwnerKey } = ownerContext(identity);
-  const fingerprint = digest(`${input.productId}\n${input.variantColour}\n${input.image.bytes}\n${digest(input.image.buffer.toString('base64'))}`);
+  const now = deps.now();
+  const { ownerKey, rateOwnerKey } = ownerContext(identity);
+  if (!input.sourceJobId && !input.image) throw HttpError.badRequest('An image is required for the first Virtual Try-On preview.');
+
+  const fingerprintSource = input.sourceJobId
+    ? `source:${input.sourceJobId}`
+    : `upload:${input.image!.bytes}:${digest(input.image!.buffer.toString('base64'))}`;
+  const fingerprint = digest(`${input.productId}\n${input.variantColour}\n${fingerprintSource}`);
   const existing = await VirtualTryOnJob.findOne({ ownerKey, idempotencyKey: input.idempotencyKey }).select(INTERNAL_SELECT);
   if (existing) {
     if (existing.requestFingerprint !== fingerprint) throw HttpError.conflict('The idempotency key was already used for a different Virtual Try-On request.');
     return publicDto(existing, now, identity.userId ? undefined : capability(ownerKey, existing.id));
+  }
+
+  let sourceJob: JobDocument | undefined;
+  if (input.sourceJobId) {
+    const ownedSource = await ownedJob(input.sourceJobId, identity, input.sourceCapability);
+    try { sourceJob = await refresh(ownedSource.job, deps); }
+    catch (error) {
+      if (error instanceof VirtualTryOnProviderError) throw providerHttpError(error);
+      throw error;
+    }
+    if (sourceJob.status !== 'completed' || !sourceJob.resultAsset || !sourceJob.resultExpiresAt
+      || sourceJob.resultExpiresAt <= now) {
+      throw HttpError.conflict('The previous Virtual Try-On preview is no longer available to continue from.');
+    }
   }
 
   const product = await productForTryOn(input.productId);
@@ -226,36 +270,60 @@ export async function submitTryOn(input: SubmitTryOnInput, identity: TryOnIdenti
   if (!garmentImageUrl) throw HttpError.badRequest('The selected colour is out of stock or has no suitable Virtual Try-On image.');
 
   const id = new Types.ObjectId();
-  const publicId = `vestra/vto-temporary/${randomUUID()}`;
-  const sourceAccessExpiresAt = new Date(now.getTime() + env.VTO_SOURCE_URL_TTL_SECONDS * 1000);
+  const needsUpload = !sourceJob;
+  const publicId = needsUpload ? `vestra/vto-temporary/${randomUUID()}` : `vestra/vto-quota/${id.toString()}`;
+  const requestedSourceExpiry = new Date(now.getTime() + env.VTO_SOURCE_URL_TTL_SECONDS * 1000);
+  const sourceAccessExpiresAt = sourceJob?.resultExpiresAt && sourceJob.resultExpiresAt < requestedSourceExpiry
+    ? sourceJob.resultExpiresAt : requestedSourceExpiry;
   const quotaDay = now.toISOString().slice(0, 10);
-  await VirtualTryOnAssetCleanup.create({ jobId: id, publicId, deliveryType: 'private', ownerKey, quotaDay,
-    quotaReleased: false, status: 'pending', nextAttemptAt: sourceAccessExpiresAt });
+  await VirtualTryOnAssetCleanup.create({
+    jobId: id, publicId, deliveryType: 'private', ownerKey, quotaDay, quotaReleased: false,
+    status: needsUpload ? 'pending' : 'deleted', nextAttemptAt: sourceAccessExpiresAt,
+    ...(!needsUpload ? { cleanedAt: now } : {}),
+  });
 
   let reservationMade = false;
   let uploadAttempted = false;
   let orphanSettled = false;
-  let asset: StoredImageAsset | undefined;
+  let asset: PersistedPrivateAsset | undefined;
   let job: JobDocument | undefined;
   try {
     const reservation = await reserveQuota(ownerKey, rateOwnerKey, now, id);
     reservationMade = true;
-    uploadAttempted = true;
-    asset = await deps.imageStorage.uploadTemporary(input.image, publicId);
+    if (sourceJob?.resultAsset) {
+      asset = persistedAsset(sourceJob.resultAsset);
+    } else {
+      uploadAttempted = true;
+      asset = persistedAsset(await deps.imageStorage.uploadTemporary(input.image!, publicId));
+    }
+
     const guestToken = identity.userId ? undefined : capability(ownerKey, id.toString());
     try {
-      job = await VirtualTryOnJob.create({ _id: id, ...(identity.userId ? { ownerUserId: identity.userId } : {}), ownerKey,
-        ...(guestToken ? { guestCapabilityHash: digest(guestToken) } : {}), idempotencyKey: input.idempotencyKey,
-        requestFingerprint: fingerprint, productId: product._id, productName: product.name,
-        productImage: garmentImageUrl, variantColour: input.variantColour, garmentImageUrl,
-        status: 'pending', submissionState: 'reserved', temporaryAsset: asset,
-        sourceAccessExpiresAt, quotaDay: reservation.day,
+      job = await VirtualTryOnJob.create({
+        _id: id,
+        ...(identity.userId ? { ownerUserId: identity.userId } : {}),
+        ownerKey,
+        ...(guestToken ? { guestCapabilityHash: digest(guestToken) } : {}),
+        idempotencyKey: input.idempotencyKey,
+        requestFingerprint: fingerprint,
+        ...(sourceJob ? { sourceJobId: sourceJob._id } : {}),
+        productId: product._id,
+        productName: product.name,
+        productImage: garmentImageUrl,
+        variantColour: input.variantColour,
+        garmentImageUrl,
+        status: 'pending',
+        submissionState: 'reserved',
+        temporaryAsset: asset,
+        sourceAccessExpiresAt,
+        quotaDay: reservation.day,
         consent: { givenAt: now, privacyVersion: PRIVACY_VERSION },
-        deadlineAt: new Date(now.getTime() + env.VTO_JOB_DEADLINE_SECONDS * 1000) });
+        deadlineAt: new Date(now.getTime() + env.VTO_JOB_DEADLINE_SECONDS * 1000),
+      });
     } catch (error) {
       if ((error as { code?: number }).code === 11000) {
         orphanSettled = true;
-        await cleanupAsset(id, deps, deps.now()).catch(() => undefined);
+        if (uploadAttempted) await cleanupAsset(id, deps, deps.now()).catch(() => undefined);
         await releaseTrackedQuota(ownerKey, reservation.day, id, false).catch(() => undefined);
         const raced = await VirtualTryOnJob.findOne({ ownerKey, idempotencyKey: input.idempotencyKey }).select(INTERNAL_SELECT);
         if (raced && raced.requestFingerprint === fingerprint) {
@@ -298,11 +366,30 @@ export async function submitTryOn(input: SubmitTryOnInput, identity: TryOnIdenti
     if (!job && !orphanSettled) {
       if (uploadAttempted) await cleanupAsset(id, deps, deps.now()).catch(() => undefined);
       else await VirtualTryOnAssetCleanup.updateOne({ jobId: id }, {
-        $set: { status: 'deleted', cleanedAt: deps.now(), quotaReleased: true },
+        $set: { status: 'deleted', cleanedAt: deps.now() },
       }).catch(() => undefined);
       if (reservationMade) await releaseTrackedQuota(ownerKey, quotaDay, id, false).catch(() => undefined);
+      else await VirtualTryOnAssetCleanup.updateOne({ jobId: id }, { $set: { quotaReleased: true } }).catch(() => undefined);
     }
     throw error;
+  }
+}
+
+async function storeProviderResult(job: JobDocument, providerResultUrl: string, resultExpiresAt: Date,
+  deps: VirtualTryOnDependencies): Promise<{ resultAsset: PersistedPrivateAsset; resultUrl: string }> {
+  const sourceUrl = safeExternalHttpsUrl(providerResultUrl, ['assets.pixelcut.app']);
+  if (!sourceUrl) throw new HttpError(502, 'VTO_RESULT_UNAVAILABLE', 'The Virtual Try-On result could not be secured.');
+  if (!deps.imageStorage.uploadTemporaryFromUrl) {
+    throw new HttpError(503, 'VTO_RESULT_STORAGE_UNAVAILABLE', 'Virtual Try-On result storage is temporarily unavailable.');
+  }
+  try {
+    const stored = await deps.imageStorage.uploadTemporaryFromUrl(sourceUrl, `vestra/vto-results/${job.id}`);
+    const resultAsset = persistedAsset(stored);
+    const resultUrl = deps.imageStorage.temporaryAccessUrl(resultAsset, resultExpiresAt);
+    return { resultAsset, resultUrl };
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(502, 'VTO_RESULT_STORAGE_FAILED', 'The Virtual Try-On result could not be secured. Please try again.');
   }
 }
 
@@ -310,7 +397,7 @@ async function refresh(job: JobDocument, deps: VirtualTryOnDependencies): Promis
   const now = deps.now();
   if (TERMINAL.has(job.status)) {
     await recoverTerminal(job, deps, now, true);
-    return expireCompletedResult(job, now);
+    return expireCompletedResult(job, now, deps);
   }
   if (job.deadlineAt <= now) {
     if (job.providerJobId) await deps.provider.cancel(job.providerJobId).catch(() => undefined);
@@ -320,9 +407,11 @@ async function refresh(job: JobDocument, deps: VirtualTryOnDependencies): Promis
   const providerStatus = await deps.provider.status(job.providerJobId);
   if (providerStatus.status === 'completed' && providerStatus.resultUrl) {
     const resultExpiresAt = new Date((job.providerSubmittedAt ?? job.createdAt).getTime() + PIXELCUT_RESULT_TTL_MS);
-    return transitionTerminal(job._id, 'completed', deps, now >= resultExpiresAt
-      ? { resultExpiresAt, errorCode: 'VTO_RESULT_EXPIRED', clearResult: true }
-      : { resultUrl: providerStatus.resultUrl, resultExpiresAt });
+    if (now >= resultExpiresAt) {
+      return transitionTerminal(job._id, 'completed', deps, { resultExpiresAt, errorCode: 'VTO_RESULT_EXPIRED', clearResult: true });
+    }
+    const secured = await storeProviderResult(job, providerStatus.resultUrl, resultExpiresAt, deps);
+    return transitionTerminal(job._id, 'completed', deps, { ...secured, resultExpiresAt });
   }
   if (providerStatus.status === 'failed') {
     return transitionTerminal(job._id, 'failed', deps, { errorCode: 'VTO_PROCESSING_FAILED', clearResult: true });
@@ -385,6 +474,10 @@ export async function reconcileVirtualTryOnJobs(deps: VirtualTryOnDependencies):
   const terminalPending = await VirtualTryOnJob.find({ status: { $in: [...TERMINAL] }, reservationReleased: false })
     .limit(50).select(INTERNAL_SELECT);
   for (const job of terminalPending) await recoverTerminal(job, deps, now, true);
+
+  const expiredResults = await VirtualTryOnJob.find({ status: 'completed', resultExpiresAt: { $lte: now }, resultAsset: { $exists: true } })
+    .limit(50).select(INTERNAL_SELECT);
+  for (const job of expiredResults) await expireCompletedResult(job, now, deps);
 
   const cleanupDue = await VirtualTryOnAssetCleanup.find({ status: { $in: ['pending', 'deleting'] },
     nextAttemptAt: { $lte: now } }).limit(50);
