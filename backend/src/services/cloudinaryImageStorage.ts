@@ -5,27 +5,27 @@ import type { ValidatedImage } from './imageValidationService';
 
 export type CloudinaryDeliveryType = 'upload' | 'private';
 
-export interface StoredImageAsset {
+export interface StoredImageAsset<T extends CloudinaryDeliveryType = 'private'> {
   provider: 'cloudinary';
   assetId: string;
   publicId: string;
   format: string;
   version: number;
-  deliveryType: CloudinaryDeliveryType;
+  deliveryType: T;
   secureUrl: string;
   width: number;
   height: number;
   bytes: number;
 }
 
-export type PrivateImageAssetRef = Pick<StoredImageAsset, 'publicId' | 'format' | 'deliveryType'>;
+export type PrivateImageAssetRef = Pick<StoredImageAsset<'private'>, 'publicId' | 'format' | 'deliveryType'>;
 
 export interface ImageStorage {
-  uploadTemporary(image: ValidatedImage, publicId: string): Promise<StoredImageAsset>;
-  uploadCatalogue(image: ValidatedImage): Promise<StoredImageAsset>;
-  uploadTemporaryFromUrl?(sourceUrl: string, publicId: string): Promise<StoredImageAsset>;
+  uploadTemporary(image: ValidatedImage, publicId: string): Promise<StoredImageAsset<'private'>>;
+  uploadCatalogue(image: ValidatedImage): Promise<StoredImageAsset<'upload'>>;
+  uploadTemporaryFromUrl?(sourceUrl: string, publicId: string): Promise<StoredImageAsset<'private'>>;
   temporaryAccessUrl(asset: PrivateImageAssetRef, expiresAt: Date): string;
-  delete(asset: Pick<StoredImageAsset, 'publicId' | 'deliveryType'>): Promise<void>;
+  delete(asset: Pick<StoredImageAsset<CloudinaryDeliveryType>, 'publicId' | 'deliveryType'>): Promise<void>;
 }
 
 export interface CloudinaryTransport {
@@ -54,7 +54,7 @@ function defaultTransport(): CloudinaryTransport {
   };
 }
 
-function assetFrom(result: UploadApiResponse, deliveryType: CloudinaryDeliveryType): StoredImageAsset {
+function assetFrom<T extends CloudinaryDeliveryType>(result: UploadApiResponse, deliveryType: T): StoredImageAsset<T> {
   if (!result.asset_id || !result.public_id || !result.format || !result.secure_url) {
     throw new Error('Cloudinary returned incomplete asset metadata.');
   }
@@ -66,7 +66,7 @@ function assetFrom(result: UploadApiResponse, deliveryType: CloudinaryDeliveryTy
 export class CloudinaryImageStorage implements ImageStorage {
   constructor(private readonly transport: CloudinaryTransport = defaultTransport()) {}
 
-  private async upload(image: ValidatedImage, folder: string, deliveryType: CloudinaryDeliveryType) {
+  private async upload<T extends CloudinaryDeliveryType>(image: ValidatedImage, folder: string, deliveryType: T) {
     const result = await this.transport.upload(image.buffer, {
       resource_type: 'image', type: deliveryType, folder, public_id: randomUUID(),
       overwrite: false, unique_filename: false, use_filename: false,
@@ -112,7 +112,7 @@ export class CloudinaryImageStorage implements ImageStorage {
     });
   }
 
-  async delete(asset: Pick<StoredImageAsset, 'publicId' | 'deliveryType'>): Promise<void> {
+  async delete(asset: Pick<StoredImageAsset<CloudinaryDeliveryType>, 'publicId' | 'deliveryType'>): Promise<void> {
     const result = await this.transport.destroy(asset.publicId, {
       resource_type: 'image', type: asset.deliveryType, invalidate: true,
     }) as { result?: string } | undefined;

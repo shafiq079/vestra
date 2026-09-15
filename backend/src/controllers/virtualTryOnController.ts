@@ -18,10 +18,14 @@ export function createVirtualTryOnController(deps: VirtualTryOnDependencies) {
     const body = parseTryOnSubmission(req.body);
     const image = body.sourceJobId ? undefined : validateImageUpload(req.file);
     const result = await service.submitTryOn({
-      ...body,
-      ...(image ? { image } : {}),
-      ...(body.sourceJobId ? { sourceCapability: req.get('X-VTO-Source-Token') } : {}),
+      productId: body.productId,
+      variantColour: body.variantColour,
       idempotencyKey: parseIdempotencyKey(req.get('X-Idempotency-Key')),
+      ...(image ? { image } : {}),
+      ...(body.sourceJobId ? {
+        sourceJobId: body.sourceJobId,
+        ...(req.get('X-VTO-Source-Token') ? { sourceCapability: req.get('X-VTO-Source-Token')! } : {}),
+      } : {}),
     }, identity(req), deps);
     res.status(202).json(result);
   };
