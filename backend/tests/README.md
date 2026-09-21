@@ -1,80 +1,46 @@
 # Backend test suite
 
-Phase 11 evidence is maintained in [../PHASE_11_AUDIT.md](../PHASE_11_AUDIT.md). Run `npm run test:coverage` for its text report; generated coverage artefacts are not committed.
-
-Test tooling was established in **Phase 1** and every phase from Phase 1 onward adds
-tests for the functionality it introduces. Phase 11 audits and deepens this suite — it
-is not where testing begins.
+The automated test suite is intentionally curated around the highest-value product and integration behaviour.
 
 Run from `backend/`:
 
 ```bash
-npm test          # single run
+npm test
 npm run test:watch
+npm run test:coverage
 ```
+
+## Current scope
+
+The backend suite contains **91 test cases**. The ML service contains **9 test cases**, giving **100 automated test cases across the project**.
+
+| Test file | Cases | Main coverage |
+|---|---:|---|
+| `auth.test.ts` | 17 | registration, login, tokens, authentication failures |
+| `catalogue.test.ts` | 5 | product listing, filters, public product endpoints, visibility, categories/collections |
+| `cartWishlist.test.ts` | 11 | cart and wishlist user flows |
+| `orders.test.ts` | 11 | checkout, order creation, stock and order behaviour |
+| `adminProducts.test.ts` | 7 | admin product creation and product validation |
+| `sizeRecommendation.test.ts` | 8 | backend-to-ML size recommendation flow and validation |
+| `virtualTryOn.test.ts` | 23 | VTO validation, quota, privacy, job lifecycle and cleanup |
+| `virtualTryOnChain.test.ts` | 1 | cumulative multi-product VTO chaining |
+| `virtualTryOnProvider.test.ts` | 8 | Pixelcut/Cloudinary provider mappings and safe error handling |
+
+The ML service keeps its 8 API tests plus 1 visualisation test.
 
 ## Tooling
 
 | Concern | Choice |
 |---|---|
-| Runner | Vitest (`vitest.config.mts`) |
-| HTTP assertions | `supertest`, driven against the exported Express `app` |
-| Database | `mongodb-memory-server` — one isolated in-memory MongoDB for the run |
-| Globals | disabled; import `describe` / `it` / `expect` from `vitest` explicitly |
-
-## Convention — where new tests go
-
-- One file per route group or module, named `<subject>.test.ts`, directly under `tests/`.
-- Shared helpers and fixtures go in `tests/helpers/` and `tests/fixtures/` as later
-  phases need them. Phase 4 is expected to add authenticated-request helpers there.
-- Tests drive `createApp()` from `src/app.ts`. Never import `src/server.ts` — it binds a
-  port and opens a real database connection.
+| Runner | Vitest |
+| HTTP assertions | Supertest |
+| Database | mongodb-memory-server |
+| ML runner | pytest |
 
 ## Database isolation
 
-`tests/globalSetup.ts` starts a single in-memory `mongod` for the whole run;
-`tests/setup.ts` then runs before every test file and gives two independent guarantees
-that no test can touch the development or production database:
+`tests/globalSetup.ts` starts one in-memory MongoDB instance for the run. `tests/setup.ts` connects test files to that isolated database and drops it between files. Tests use `createApp()` and do not import `src/server.ts`, so they do not bind a real port or open the production database connection.
 
-1. It overwrites `process.env.MONGODB_URI` at module scope, *before* any test file
-   imports `src/config/env.ts`. `dotenv` never overrides a value already present in
-   `process.env`, so `backend/.env` cannot supply the URI the suite sees.
-2. Nothing under test opens its own connection. `src/app.ts` has no database side
-   effects, and `connectDatabase()` is called only from `src/server.ts`, which the suite
-   never imports. The only live connection is the in-memory one `setup.ts` opens.
+## External-provider isolation
 
-`setup.ts` drops the database after each file, so every file starts empty. Because the
-files share one database, `fileParallelism` is off — do not turn it on without giving
-each file its own database name.
-
-`tests/databaseIsolation.test.ts` asserts both guarantees rather than trusting them. If
-it fails, stop — the suite may be pointed at real data.
-
-One server per run rather than one per file is deliberate: starting `mongod` once per
-file was measurably slower and produced an occasional start-timeout failure on Windows.
-The first run downloads the `mongod` binary (cached under `node_modules/.cache`), which
-is why `hookTimeout` is generous in `vitest.config.mts`.
-
-## Test-only routes
-
-`src/routes/diagnostics.ts` provides `/api/__diagnostics/boom` so the error handler can be
-exercised against a genuinely unexpected fault. It is mounted only when `createApp()` is
-asked for diagnostics, which defaults to `NODE_ENV === 'test'`.
-`tests/errorHandling.test.ts` asserts that the route 404s when diagnostics are off, so the
-gate is verified rather than assumed.
-
-## Phase 1 coverage
-
-| File | Covers |
-|---|---|
-| `health.test.ts` | `GET /api/health` — 200, response structure, no secret exposure, `/api` base path |
-| `errorHandling.test.ts` | 404 shape, internal 500 shape, no stack-trace leakage, diagnostics gating, malformed JSON, helmet/CORS headers |
-| `databaseIsolation.test.ts` | in-memory database, test database name, no Atlas URI reachable, empty database, no models registered yet |
-| `lifecycle.test.ts` | graceful shutdown — close/disconnect/exit order, exit codes, idempotency, disconnect after a failed close, timeout backstop, SIGINT/SIGTERM/rejection/exception wiring |
-
-## Phase 10 provider isolation
-
-`virtualTryOn.test.ts` drives the real Express orchestration against injected Pixelcut and
-Cloudinary doubles. `virtualTryOnProvider.test.ts` verifies the real adapters' documented HTTP
-and signed-delivery mappings with mocked transports. The suite never sends a live Pixelcut
-generation request and never uploads to a real Cloudinary account.
+Virtual Try-On tests use injected Pixelcut and Cloudinary doubles or mocked transports. The automated suite does not consume live Pixelcut generations or upload test images to the production Cloudinary account.
