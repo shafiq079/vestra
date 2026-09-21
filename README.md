@@ -1,74 +1,106 @@
 # VESTRA
 
-VESTRA is a modern virtual fashion try-on and size-recommendation platform built as a monorepo.
+VESTRA is a completed fashion e-commerce platform with Virtual Try-On, ML size recommendation, product recommendations, customer accounts, cart, checkout, orders, and admin management.
 
-## Project Structure
+## Architecture
+
+The repository contains three independent applications:
 
 ```
 vestra/
-├── frontend/          # Vite + React + TypeScript + shadcn/ui frontend
-├── backend/           # Node.js + Express API (future phase)
+├── frontend/      # React + Vite + TypeScript
+├── backend/       # Node.js + Express + TypeScript + MongoDB
+├── ml-service/    # Python + FastAPI + Decision Tree model
+├── render.yaml    # Render deployment configuration
 └── README.md
 ```
 
-## Tech Stack
+Each application has its own dependencies and runs from its own folder. There is no root npm application.
 
-### Frontend
-- **Framework:** React 18 with TypeScript
-- **Build Tool:** Vite
-- **UI Components:** shadcn/ui (Radix UI primitives + Tailwind CSS)
-- **Routing:** React Router
+Production request flow:
 
-### Backend *(planned)*
-- **Runtime:** Node.js
-- **Framework:** Express.js
-- **Database:** MongoDB with Mongoose
-- **Size Recommendation:** Python microservice
-- **Virtual Try-On:** Third-party provider integration
-
-## Getting Started
-
-### Prerequisites
-- Node.js 18+
-- npm 9+
-
-### Install Dependencies
-
-```bash
-npm install
+```
+Browser -> Frontend -> Express backend -> MongoDB Atlas
+                              |-> Cloudinary + Pixelcut Virtual Try-On
+                              |-> FastAPI ML size recommendation service
 ```
 
-### Run Development Server
+## Frontend
 
 ```bash
+cd frontend
+npm ci
 npm run dev
 ```
 
-### Build for Production
+Production build:
 
 ```bash
 npm run build
 ```
 
-### Preview Production Build
+The frontend is deployed independently to Vercel. Its API base URL is configured through `VITE_API_BASE_URL`.
+
+## Backend
 
 ```bash
-npm run preview
+cd backend
+npm ci
+cp .env.example .env
+npm run dev
 ```
 
-## Environment Variables
-
-Copy `frontend/.env.example` to `frontend/.env` and fill in the values:
+Production build:
 
 ```bash
-cp frontend/.env.example frontend/.env
+npm run build
+npm start
 ```
 
-## Roadmap
+The backend is deployed independently to Render and connects to MongoDB Atlas, Cloudinary, Pixelcut, and the ML service through server-side environment variables.
 
-- [x] Frontend scaffold (React + Vite + shadcn/ui)
-- [ ] Backend API (Node.js + Express + MongoDB)
-- [ ] Python size-recommendation microservice
-- [ ] Virtual Try-On provider integration
-- [ ] Authentication & user accounts
-- [ ] Product catalog & inventory management
+## ML service
+
+```bash
+cd ml-service
+python -m venv .venv
+pip install -r requirements.txt
+uvicorn app.main:app --host 127.0.0.1 --port 8001
+```
+
+The ML service is deployed independently to Render. The browser never calls it directly; the Express backend is the only application that sends prediction requests.
+
+## Automated tests
+
+The final automated suite contains **100 test cases**:
+
+- Backend: **91**
+- ML service: **9**
+
+Run them independently:
+
+```bash
+cd backend
+npm test
+```
+
+```bash
+cd ml-service
+pip install -r requirements-training.txt
+pytest -q
+```
+
+## Deployment
+
+- Frontend: Vercel
+- Backend API: Render
+- ML service: Render
+- Database: MongoDB Atlas
+- Image storage: Cloudinary
+- Virtual Try-On provider: Pixelcut
+
+`render.yaml` is intentionally retained because it describes the two Render services and their build/start configuration.
+
+## Security
+
+Real credentials are not committed to the repository. Copy the relevant `.env.example` file for local development and provide secrets through local environment files or the deployment platform.

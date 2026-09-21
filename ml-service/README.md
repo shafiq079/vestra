@@ -1,8 +1,14 @@
-# VESTRA ML Size Recommendation service
+# VESTRA ML Size Recommendation Service
 
-This independent FastAPI service hosts the Phase 13 **Decision Tree** clothing-size model. The browser never calls it directly. Production traffic is:
+This independent FastAPI service hosts the Decision Tree clothing-size model.
 
-`React -> Express -> FastAPI Decision Tree service`
+Production traffic is:
+
+```
+React frontend -> Express backend -> FastAPI ML service
+```
+
+The browser never calls the ML service directly.
 
 ## Local run
 
@@ -12,16 +18,21 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-set ML_SERVICE_KEY=replace-with-a-long-random-secret
-# PowerShell: $env:ML_SERVICE_KEY="replace-with-a-long-random-secret"
+```
+
+Set `ML_SERVICE_KEY` in the environment, then run:
+
+```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
 Health check:
 
-`GET http://127.0.0.1:8001/health`
+```
+GET http://127.0.0.1:8001/health
+```
 
-The protected endpoints require `X-ML-Service-Key` and are intended only for the Express backend.
+Protected endpoints require `X-ML-Service-Key`.
 
 ## Runtime endpoints
 
@@ -31,19 +42,26 @@ The protected endpoints require `X-ML-Service-Key` and are intended only for the
 
 ## Model
 
-The committed model is a real `sklearn.tree.DecisionTreeClassifier` trained from the client-supplied dataset (`weight`, `age`, `height` -> `size`). The persisted pipeline includes median imputation. The text-safe `.joblib.b64` artifact is verified against the SHA-256 hash in its metadata before loading.
+The committed model is a real `sklearn.tree.DecisionTreeClassifier` trained from the supplied `weight`, `age`, and `height` inputs with `size` as the target.
 
-Holdout evaluation used an 80/20 **measurement-grouped** split so identical `(weight, age, height)` combinations could not appear in both training and test sets. The tuned Decision Tree improved exact-size accuracy from about 44.9% to about 49.8%, and within-one-size accuracy from about 73.7% to about 77.5%. These results are guidance quality, not a guaranteed-fit claim.
+The persisted pipeline includes median imputation. Holdout evaluation used a measurement-grouped split so identical measurement combinations could not appear in both training and test groups.
 
-## Training and documentation analysis
+Current model evidence is approximately:
 
-Install the training extras:
+- exact-size accuracy: **49.8%**
+- within-one-size accuracy: **77.5%**
+
+The recommendation is sizing guidance, not a guaranteed fit.
+
+## Training and analysis
+
+Install the training dependencies:
 
 ```bash
 pip install -r requirements-training.txt
 ```
 
-Then follow `training/README.md`. It contains the NumPy/Pandas cleaning workflow, Seaborn/Matplotlib visualisation script, Decision Tree tuning/evaluation, and reproducible model export.
+Reproducible training and visualisation instructions are kept in `training/README.md`.
 
 ## Tests
 
@@ -52,13 +70,22 @@ pip install -r requirements-training.txt
 pytest -q
 ```
 
-## Render
+The ML suite contains **9 test cases**.
 
-Create a separate Render web service with `ml-service/` as its root.
+## Production
 
-- Build: `pip install -r requirements.txt`
-- Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Health check: `/health`
-- Secret: `ML_SERVICE_KEY`
+Render runs this folder as an independent Python web service.
 
-The same secret value is configured only in the Express Render service. Do not place it in Vercel or any `VITE_` variable.
+Build:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+The same `ML_SERVICE_KEY` is configured in the Express backend and this service. It must not be exposed to the frontend.
