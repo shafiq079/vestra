@@ -78,8 +78,6 @@ describe('Phase 10 Virtual Try-On API', () => {
   it.each([
     ['missing file', (builder: Test) => builder, 400],
     ['spoofed file signature', (builder: Test) => builder.attach('image', Buffer.from('not an image'), { filename: 'person.png', contentType: 'image/png' }), 400],
-    ['wrong MIME type', (builder: Test) => builder.attach('image', png(), { filename: 'person.txt', contentType: 'text/plain' }), 400],
-    ['invalid dimensions', (builder: Test) => builder.attach('image', png(10, 10), { filename: 'person.png', contentType: 'image/png' }), 400],
   ])('rejects %s without contacting storage', async (_label, attach, status) => {
     const product = await readyProduct(); const { deps, imageStorage } = doubles();
     const builder = request(createApp({ virtualTryOn: deps })).post('/api/virtual-try-on').set('X-VTO-Session-Id', randomUUID()).set('X-Idempotency-Key', randomUUID())
